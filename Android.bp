@@ -5,17 +5,20 @@ package {
 java_library {
     name: "TestParameterInjector",
     srcs: [
-        "src/main/java/**/*.java"
+        "src/main/java/**/*.java",
     ],
     static_libs: [
         "guava",
         "auto_value_annotations",
         "junit",
         "libprotobuf-java-lite",
-        "snakeyaml"
+        "snakeyaml",
     ],
-    plugins: ["auto_value_plugin", "auto_annotation_plugin"],
-    host_supported: true
+    plugins: [
+        "auto_value_plugin",
+        "auto_annotation_plugin",
+    ],
+    host_supported: true,
 }
 
 java_test_host {
@@ -23,7 +26,7 @@ java_test_host {
     srcs: ["src/test/java/**/*.java"],
     static_libs: [
         "TestParameterInjector",
-        "truth-prebuilt"
+        "truth",
     ],
     test_options: {
         unit_test: true,

@@ -2,6 +2,12 @@ package {
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
+// To update:
+// - git fetch aosp
+// - git merge --no-ff --allow-unrelated-histories aosp/upstream-main
+// - Update the version and last_upgrade_date of the METADATA file
+// - git commit --amend
+
 java_library {
     name: "TestParameterInjector",
     srcs: [
@@ -19,6 +25,19 @@ java_library {
         "auto_annotation_plugin",
     ],
     host_supported: true,
+    visibility: [
+        "//cts/tests/app/WallpaperTest",
+        "//cts/tests/autofillservice",
+        "//cts/tests/tests/app",
+        "//cts/tests/tests/content",
+        "//frameworks/base/core/tests/coretests",
+        "//frameworks/base/services/tests/displayservicetests",
+        "//frameworks/base/services/tests/powerservicetests",
+        "//frameworks/base/services/tests/uiservicestests",
+        "//frameworks/base/tests/UsbManagerTests",
+        "//packages/modules/Bluetooth/framework/tests/bumble",
+        "//vendor:__subpackages__",
+    ],
 }
 
 java_test_host {

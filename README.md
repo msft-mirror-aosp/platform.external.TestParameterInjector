@@ -5,7 +5,7 @@ TestParameterInjector
 
 ## Introduction
 
-`TestParameterInjector` is a JUnit4 test runner that runs its test methods for
+`TestParameterInjector` is a JUnit4 and JUnit5 test runner that runs its test methods for
 different combinations of field/parameter values.
 
 Parameterized tests are a great way to avoid code duplication between tests and
@@ -22,6 +22,8 @@ goes into a bit more detail about how `TestParameterInjector` compares to other
 frameworks used at Google.
 
 ## Getting started
+
+### JUnit4
 
 To start using `TestParameterInjector` right away, copy the following snippet:
 
@@ -52,7 +54,8 @@ And add the following dependency to your `.pom` file:
 <dependency>
   <groupId>com.google.testparameterinjector</groupId>
   <artifactId>test-parameter-injector</artifactId>
-  <version>1.4</version>
+  <version>1.15</version>
+  <scope>test</scope>
 </dependency>
 ```
 
@@ -60,8 +63,56 @@ or see [this maven.org
 page](https://search.maven.org/artifact/com.google.testparameterinjector/test-parameter-injector)
 for instructions for other build tools.
 
+### JUnit5 (Jupiter)
+<details>
+<summary>Click to expand</summary>
+
+To start using `TestParameterInjector` right away, copy the following snippet:
+
+```java
+import com.google.testing.junit.testparameterinjector.junit5.TestParameterInjectorTest;
+import com.google.testing.junit.testparameterinjector.junit5.TestParameter;
+
+class MyTest {
+
+  @TestParameter boolean isDryRun;
+
+  @TestParameterInjectorTest
+  void test1(@TestParameter boolean enableFlag) {
+    // ...
+  }
+
+  @TestParameterInjectorTest
+  void test2(@TestParameter MyEnum myEnum) {
+    // ...
+  }
+
+  enum MyEnum { VALUE_A, VALUE_B, VALUE_C }
+}
+```
+
+And add the following dependency to your `.pom` file:
+
+```xml
+<dependency>
+  <groupId>com.google.testparameterinjector</groupId>
+  <artifactId>test-parameter-injector-junit5</artifactId>
+  <version>1.15</version>
+  <scope>test</scope>
+</dependency>
+```
+
+or see [this maven.org
+page](https://search.maven.org/artifact/com.google.testparameterinjector/test-parameter-injector-junit5)
+for instructions for other build tools.
+
+</details>
 
 ## Basics
+
+**Note about JUnit4 vs JUnit5:**<br />
+The code below assumes you're using JUnit4. For JUnit5 users, simply remove the
+`@RunWith` annotation and replace `@Test` by `@TestParameterInjectorTest`.
 
 ### `@TestParameter` for testing all combinations
 
@@ -107,6 +158,10 @@ public class MyTest {
 
 In this example, both `test1` and `test2` will be run twice (once for each
 parameter value).
+
+The test runner will set these fields before calling any methods, so it is safe
+to use such `@TestParameter`-annotated fields for setting up other test values
+and behavior in `@Before` methods.
 
 #### Supported types
 
@@ -207,11 +262,16 @@ mappings:
 
 ```java
 @Test
-@TestParameters({
-  "{age: 17, expectIsAdult: false}",
-  "{age: 22, expectIsAdult: true}",
-})
+@TestParameters("{age: 17, expectIsAdult: false}")
+@TestParameters("{age: 22, expectIsAdult: true}")
 public void personIsAdult(int age, boolean expectIsAdult) { ... }
+```
+
+which would generate the following tests:
+
+```
+MyTest#personIsAdult[{age: 17, expectIsAdult: false}]
+MyTest#personIsAdult[{age: 22, expectIsAdult: true}]
 ```
 
 The string format supports the same types as `@TestParameter` (e.g. enums). See
@@ -220,7 +280,50 @@ the `@TestParameters` javadoc for more info.
 `@TestParameters` works in the same way on the constructor, in which case all
 tests will be run for the given parameter sets.
 
+> Tip: Consider setting a custom name if the YAML string is large:
+>
+> ```java
+> @Test
+> @TestParameters(customName = "teenager", value = "{age: 17, expectIsAdult: false}")
+> @TestParameters(customName = "young adult", value = "{age: 22, expectIsAdult: true}")
+> public void personIsAdult(int age, boolean expectIsAdult) { ... }
+> ```
+>
+> This will generate the following test names:
+>
+> ```
+> MyTest#personIsAdult[teenager]
+> MyTest#personIsAdult[young adult]
+> ```
+
+### Filtering unwanted parameters
+
+Sometimes, you want to exclude a parameter or a combination of parameters. We
+recommend doing this via JUnit assumptions which is also supported by
+[Truth](https://truth.dev/):
+
+```java
+import static com.google.common.truth.TruthJUnit.assume;
+
+@Test
+public void myTest(@TestParameter Fruit fruit) {
+  assume().that(fruit).isNotEqualTo(Fruit.BANANA);
+
+  // At this point, the test will only run for APPLE and CHERRY.
+  // The BANANA case will silently be ignored.
+}
+
+enum Fruit { APPLE, BANANA, CHERRY }
+```
+
+Note that the above works regardless of what parameterization framework you
+choose.
+
 ## Advanced usage
+
+**Note about JUnit4 vs JUnit5:**<br />
+The code below assumes you're using JUnit4. For JUnit5 users, simply remove the
+`@RunWith` annotation and replace `@Test` by `@TestParameterInjectorTest`.
 
 ### Dynamic parameter generation for `@TestParameter`
 
@@ -228,23 +331,47 @@ Instead of providing a list of parsable strings, you can implement your own
 `TestParameterValuesProvider` as follows:
 
 ```java
+import com.google.testing.junit.testparameterinjector.TestParameterValuesProvider;
+
 @Test
 public void matchesAllOf_throwsOnNull(
     @TestParameter(valuesProvider = CharMatcherProvider.class) CharMatcher charMatcher) {
   assertThrows(NullPointerException.class, () -> charMatcher.matchesAllOf(null));
 }
 
-private static final class CharMatcherProvider implements TestParameterValuesProvider {
+private static final class CharMatcherProvider extends TestParameterValuesProvider {
   @Override
-  public List<CharMatcher> provideValues() {
+  public List<CharMatcher> provideValues(Context context) {
     return ImmutableList.of(CharMatcher.any(), CharMatcher.ascii(), CharMatcher.whitespace());
   }
 }
 ```
 
-Note that `provideValues()` dynamically construct the returned list, e.g. by
-reading a file. There are no restrictions on the object types returned, but note
-that `toString()` will be used for the test names.
+Notes:
+
+-   The `provideValues()` method can dynamically construct the returned list,
+    e.g. by reading a file.
+-   There are no restrictions on the object types returned.
+-   The `provideValues()` method is called before `@BeforeClass`, so don't rely
+    on any static state initialized in there.
+-   The returned objects' `toString()` will be used for the test names. If you
+    want to customize the value names, you can do that as follows:
+
+    ```
+    private static final class FruitProvider extends TestParameterValuesProvider {
+      @Override
+      public List<?> provideValues(Context context) {
+        return ImmutableList.of(
+            value(new Apple()).withName("apple"),
+            value(new Banana()).withName("banana"));
+      }
+    }
+    ```
+
+-   The given `Context` contains the test class and other annotations on the
+    `@TestParameter`-annotated parameter/field. This allows more generic
+    providers that take into account custom annotations with extra data, or the
+    implementation of abstract methods on a base test class.
 
 ### Dynamic parameter generation for `@TestParameters`
 

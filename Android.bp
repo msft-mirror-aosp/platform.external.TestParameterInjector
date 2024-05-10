@@ -2,20 +2,42 @@ package {
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
+// To update:
+// - git fetch aosp
+// - git merge --no-ff --allow-unrelated-histories aosp/upstream-main
+// - Update the version and last_upgrade_date of the METADATA file
+// - git commit --amend
+
 java_library {
     name: "TestParameterInjector",
     srcs: [
-        "src/main/java/**/*.java"
+        "src/main/java/**/*.java",
     ],
     static_libs: [
         "guava",
         "auto_value_annotations",
         "junit",
         "libprotobuf-java-lite",
-        "snakeyaml"
+        "snakeyaml",
     ],
-    plugins: ["auto_value_plugin", "auto_annotation_plugin"],
-    host_supported: true
+    plugins: [
+        "auto_value_plugin",
+        "auto_annotation_plugin",
+    ],
+    host_supported: true,
+    visibility: [
+        "//cts/tests/app/WallpaperTest",
+        "//cts/tests/autofillservice",
+        "//cts/tests/tests/app",
+        "//cts/tests/tests/content",
+        "//frameworks/base/core/tests/coretests",
+        "//frameworks/base/services/tests/displayservicetests",
+        "//frameworks/base/services/tests/powerservicetests",
+        "//frameworks/base/services/tests/uiservicestests",
+        "//frameworks/base/tests/UsbManagerTests",
+        "//packages/modules/Bluetooth/framework/tests/bumble",
+        "//vendor:__subpackages__",
+    ],
 }
 
 java_test_host {
@@ -23,7 +45,7 @@ java_test_host {
     srcs: ["src/test/java/**/*.java"],
     static_libs: [
         "TestParameterInjector",
-        "truth-prebuilt"
+        "truth",
     ],
     test_options: {
         unit_test: true,

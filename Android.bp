@@ -31,6 +31,8 @@ java_library {
         "//cts/tests/tests/app",
         "//cts/tests/tests/content",
         "//frameworks/base/core/tests/coretests",
+        "//frameworks/base/libs/WindowManager/Shell/tests/unittest",
+        "//frameworks/base/libs/WindowManager/Jetpack/tests/unittest",
         "//frameworks/base/services/tests/displayservicetests",
         "//frameworks/base/services/tests/powerservicetests",
         "//frameworks/base/services/tests/uiservicestests",

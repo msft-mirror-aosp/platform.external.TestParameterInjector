@@ -39,6 +39,7 @@ java_library {
         "//frameworks/base/services/tests/vibrator",
         "//frameworks/base/tests/UsbManagerTests",
         "//packages/modules/Bluetooth/framework/tests/bumble",
+        "//packages/modules/HealthFitness/tests/unittests",
         "//vendor:__subpackages__",
     ],
 }

@@ -1,9 +1,37 @@
+## 1.18
+
+- Made some internal JUnit4 methods of `TestParameterInjector` public:
+
+  - `computeTestMethods()`
+  - `methodBlock()`
+  - `methodInvoker()`
+
+  These allow any client to combine `TestParameterInjector` with another JUnit4
+  runner by manually creating a `TestParameterInjector` instance and calling
+  these methods from the combined JUnit4 runner.
+
+## 1.17
+
+- Added support for parsing `java.time.Duration` from a string. Example:
+
+```
+@Test
+public void myTest(@TestParameter({"1d", "2h20min", "10.5ms"}) Duration duration){...}
+```
+
 ## 1.16
 
 - Deprecated [`TestParameter.TestParameterValuesProvider`](
   https://google.github.io/TestParameterInjector/docs/latest/com/google/testing/junit/testparameterinjector/TestParameter.TestParameterValuesProvider.html)
   in favor of its newer version [`TestParameterValuesProvider`](
   https://google.github.io/TestParameterInjector/docs/latest/com/google/testing/junit/testparameterinjector/TestParameterValuesProvider.html).
+- Added support for repeated annotations to [`TestParameterValuesProvider.Context`](
+  https://google.github.io/TestParameterInjector/docs/latest/com/google/testing/junit/testparameterinjector/TestParameterValuesProvider.Context.html)
+- Converting incorrectly YAML-parsed booleans back to their enum values when possible
+- Support enum aliases (defined as static fields on the enum), and in particular
+  Protocol Buffer enum aliases
+- When generating test names for enum values, the enum name is used instead of
+  its `toString()` method.
 
 ## 1.15
 

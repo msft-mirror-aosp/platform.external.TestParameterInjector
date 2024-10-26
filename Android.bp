@@ -30,6 +30,7 @@ java_library {
         "//cts/tests/app/WallpaperTest",
         "//cts/tests/autofillservice",
         "//cts/tests/tests/app",
+        "//cts/tests/tests/car",
         "//cts/tests/tests/content",
         "//external/robolectric:__subpackages__",
         "//frameworks/base/core/tests/coretests",

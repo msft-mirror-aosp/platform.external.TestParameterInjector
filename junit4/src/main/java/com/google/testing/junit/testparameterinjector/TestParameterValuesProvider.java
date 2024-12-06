@@ -26,8 +26,8 @@ import javax.annotation.Nullable;
 /**
  * Abstract class for custom providers of @TestParameter values.
  *
- * <p>This is a replacement for {@link TestParameter.TestParameterValuesProvider}, which will soon
- * be deprecated. The difference with the former interface is that this class provides a {@code
+ * <p>This is a replacement for {@link TestParameter.TestParameterValuesProvider}, which is
+ * deprecated. The difference with the former interface is that this class provides a {@code
  * Context} instance when invoking {@link #provideValues}.
  */
 public abstract class TestParameterValuesProvider
@@ -90,7 +90,7 @@ public abstract class TestParameterValuesProvider
      *
      * @throws NoSuchElementException if this there is no annotation with the given type
      * @throws IllegalArgumentException if there are multiple annotations with the given type
-     * @throws IllegalArgumentException if the argument it TestParameter.class because it is already
+     * @throws IllegalArgumentException if the argument is TestParameter.class because it is already
      *     handled by the TestParameterInjector framework.
      */
     public <A extends Annotation> A getOtherAnnotation(Class<A> annotationType) {
@@ -102,7 +102,7 @@ public abstract class TestParameterValuesProvider
     }
 
     /**
-     * Returns the only annotation with the given type on the field or parameter that was annotated
+     * Returns all annotations with the given type on the field or parameter that was annotated
      * with @TestParameter.
      *
      * <p>For example, if the test code is as follows:
@@ -118,12 +118,12 @@ public abstract class TestParameterValuesProvider
      *   }
      * </pre>
      *
-     * then {@code context.getOtherAnnotations(CustomAnnotation.class)} will return the annotation
+     * then {@code context.getOtherAnnotations(CustomAnnotation.class)} will return the annotations
      * with 123 and 456.
      *
      * <p>Returns an empty list if this there is no annotation with the given type.
      *
-     * @throws IllegalArgumentException if the argument it TestParameter.class because it is already
+     * @throws IllegalArgumentException if the argument is TestParameter.class because it is already
      *     handled by the TestParameterInjector framework.
      */
     public <A extends Annotation> ImmutableList<A> getOtherAnnotations(Class<A> annotationType) {

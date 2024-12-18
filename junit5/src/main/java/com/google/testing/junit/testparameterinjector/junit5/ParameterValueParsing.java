@@ -14,27 +14,39 @@
 
 package com.google.testing.junit.testparameterinjector.junit5;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Verify.verify;
+import static com.google.common.collect.Iterables.getOnlyElement;
 
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Primitives;
 import com.google.common.primitives.UnsignedLong;
 import com.google.common.reflect.TypeToken;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.lang.reflect.Array;
+import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.math.BigInteger;
 import java.nio.charset.Charset;
+import java.time.Duration;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
@@ -45,7 +57,37 @@ final class ParameterValueParsing {
 
   @SuppressWarnings("unchecked")
   static <E extends Enum<E>> Enum<?> parseEnum(String str, Class<?> enumType) {
-    return Enum.valueOf((Class<E>) enumType, str);
+    try {
+      return Enum.valueOf((Class<E>) enumType, str);
+    } catch (IllegalArgumentException e) {
+      // The given name was not a valid enum value. However, the enum might have an alias to one of
+      // its values defined as static field. This happens for example (via code generation) in the
+      // case of Protocol Buffer aliases (see the allow_alias option).
+      Optional<Enum<?>> enumValue = maybeGetStaticConstant(enumType, str);
+      if (enumValue.isPresent()) {
+        return enumValue.get();
+      } else {
+        throw e;
+      }
+    }
+  }
+
+  @SuppressWarnings("unchecked")
+  private static Optional<Enum<?>> maybeGetStaticConstant(Class<?> enumType, String fieldName) {
+    verify(enumType.isEnum(), "Given type %s is not a enum.", enumType.getSimpleName());
+    try {
+      Field field = enumType.getField(fieldName);
+      Object valueCandidate = field.get(null);
+      checkArgument(
+          enumType.isInstance(valueCandidate),
+          "The field %s.%s exists, but is not of expected type %s.",
+          enumType.getSimpleName(),
+          fieldName,
+          enumType.getSimpleName());
+      return Optional.of((Enum<?>) valueCandidate);
+    } catch (SecurityException | ReflectiveOperationException e) {
+      return Optional.absent();
+    }
   }
 
   static boolean isValidYamlString(String yamlString) {
@@ -131,6 +173,11 @@ final class ParameterValueParsing {
     yamlValueTransformer
         .ifJavaType(Enum.class)
         .supportParsedType(
+            Boolean.class,
+            bool ->
+                ParameterValueParsing.parseEnumIfUnambiguousYamlBoolean(
+                    bool, javaType.getRawType()))
+        .supportParsedType(
             String.class, str -> ParameterValueParsing.parseEnum(str, javaType.getRawType()));
 
     yamlValueTransformer
@@ -148,6 +195,12 @@ final class ParameterValueParsing {
           .supportParsedType(byte[].class, ByteStringReflection::copyFrom);
     }
 
+    yamlValueTransformer
+        .ifJavaType(Duration.class)
+        .supportParsedType(String.class, ParameterValueParsing::parseDuration)
+        // Support the special case where the YAML string is "0"
+        .supportParsedType(Integer.class, i -> parseDuration(String.valueOf(i)));
+
     // Added mainly for protocol buffer parsing
     yamlValueTransformer
         .ifJavaType(List.class)
@@ -164,6 +217,42 @@ final class ParameterValueParsing {
         .supportParsedType(Map.class, map -> parseYamlMapToJavaMap(map, javaType));
 
     return yamlValueTransformer.transformedJavaValue();
+  }
+
+  private static Enum<?> parseEnumIfUnambiguousYamlBoolean(boolean yamlValue, Class<?> enumType) {
+    Set<String> negativeYamlStrings =
+        ImmutableSet.of("false", "False", "FALSE", "n", "N", "no", "No", "NO", "off", "Off", "OFF");
+    Set<String> positiveYamlStrings =
+        ImmutableSet.of("on", "On", "ON", "true", "True", "TRUE", "y", "Y", "yes", "Yes", "YES");
+
+    // This is the list of YAML strings that a user could have used to define this boolean. Since
+    // the user probably didn't intend a boolean but an enum (since we're expecting an enum), one of
+    // these strings may (unambiguously) match one of the enum values.
+    Set<String> yamlStringCandidates = yamlValue ? positiveYamlStrings : negativeYamlStrings;
+
+    Set<Enum<?>> matches = new HashSet<>();
+    for (Object enumValueObject : enumType.getEnumConstants()) {
+      Enum<?> enumValue = (Enum<?>) enumValueObject;
+      if (yamlStringCandidates.contains(enumValue.name())) {
+        matches.add(enumValue);
+      }
+    }
+
+    checkArgument(
+        !matches.isEmpty(),
+        "Cannot cast a boolean (%s) to an enum of type %s.",
+        yamlValue,
+        enumType.getSimpleName());
+    checkArgument(
+        matches.size() == 1,
+        "Cannot cast a boolean (%s) to an enum of type %s. It is likely that the YAML parser is"
+            + " 'wrongly' parsing one of these values as boolean: %s. You can solve this by putting"
+            + " quotes around the YAML value, forcing the YAML parser to parse a String, which can"
+            + " then be converted to the enum.",
+        yamlValue,
+        enumType.getSimpleName(),
+        matches);
+    return getOnlyElement(matches);
   }
 
   private static Map<?, ?> parseYamlMapToJavaMap(Map<?, ?> map, TypeToken<?> javaType) {
@@ -294,9 +383,77 @@ final class ParameterValueParsing {
       return resultBuider.toString();
     } else if (ByteStringReflection.isInstanceOfByteString(value)) {
       return Arrays.toString(ByteStringReflection.byteStringToByteArray(value));
+    } else if (value instanceof Enum<?>) {
+      // Sometimes, enums have custom toString() methods. They are probably adding extra information
+      // (such as with protobuf enums on Android), but for a test name, the string should be as
+      // short as possible
+      return ((Enum<?>) value).name();
     } else {
       return String.valueOf(value);
     }
+  }
+
+  // ********** Duration parsing ********** //
+
+  private static final ImmutableMap<String, Duration> ABBREVIATION_TO_DURATION =
+      new ImmutableMap.Builder<String, Duration>()
+          .put("d", Duration.ofDays(1))
+          .put("h", Duration.ofHours(1))
+          .put("m", Duration.ofMinutes(1))
+          .put("min", Duration.ofMinutes(1))
+          .put("s", Duration.ofSeconds(1))
+          .put("ms", Duration.ofMillis(1))
+          .put("us", Duration.ofNanos(1000))
+          .put("ns", Duration.ofNanos(1))
+          .buildOrThrow();
+  private static final Pattern UNIT_PATTERN =
+      Pattern.compile("(?x) ([0-9]+)? (\\.[0-9]*)? (d|h|min|ms?|s|us|ns)");
+  private static final CharMatcher ASCII_DIGIT = CharMatcher.inRange('0', '9');
+
+  private static Duration parseDuration(String value) {
+    checkArgument(value != null, "input value cannot be null");
+    checkArgument(!value.isEmpty(), "input value cannot be empty");
+    checkArgument(!value.equals("-"), "input value cannot be '-'");
+    checkArgument(!value.equals("+"), "input value cannot be '+'");
+
+    value = CharMatcher.whitespace().trimFrom(value);
+
+    if (Objects.equals(value, "0")) {
+      return Duration.ZERO;
+    }
+
+    Duration duration = Duration.ZERO;
+    boolean negative = value.startsWith("-");
+    boolean explicitlyPositive = value.startsWith("+");
+    int index = negative || explicitlyPositive ? 1 : 0;
+    Matcher matcher = UNIT_PATTERN.matcher(value);
+    while (matcher.find(index) && matcher.start() == index) {
+      // Prevent strings like ".s" or "d" by requiring at least one digit.
+      checkArgument(ASCII_DIGIT.matchesAnyOf(matcher.group(0)));
+      try {
+        String unit = matcher.group(3);
+
+        long whole = Long.parseLong(firstNonNull(matcher.group(1), "0"));
+        Duration singleUnit = ABBREVIATION_TO_DURATION.get(unit);
+        checkArgument(singleUnit != null, "invalid unit (%s)", unit);
+        // TODO(b/142748138): Consider using saturated duration math here
+        duration = duration.plus(singleUnit.multipliedBy(whole));
+
+        long nanosPerUnit = singleUnit.toNanos();
+        double frac = Double.parseDouble("0" + firstNonNull(matcher.group(2), ""));
+        duration = duration.plus(Duration.ofNanos((long) (nanosPerUnit * frac)));
+      } catch (ArithmeticException e) {
+        throw new IllegalArgumentException(e);
+      }
+      index = matcher.end();
+    }
+    if (index < value.length()) {
+      throw new IllegalArgumentException("Could not parse entire duration: " + value);
+    }
+    if (negative) {
+      duration = duration.negated();
+    }
+    return duration;
   }
 
   private ParameterValueParsing() {}

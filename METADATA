@@ -12,6 +12,6 @@ third_party {
     value: "https://github.com/google/TestParameterInjector"
   }
   version: "12066d29df68922d8c4a1a0c2c6128abc487340f"
-  last_upgrade_date { year: 2024 month: 4 day: 5 }
+  last_upgrade_date { year: 2024 month: 10 day: 16 }
   license_type: NOTICE
 }

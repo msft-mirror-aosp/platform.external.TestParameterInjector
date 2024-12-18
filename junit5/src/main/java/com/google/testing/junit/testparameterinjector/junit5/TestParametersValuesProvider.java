@@ -18,22 +18,22 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
+import com.google.testing.junit.testparameterinjector.junit5.TestParameters.TestParametersValues;
 import java.lang.annotation.Annotation;
 import java.util.List;
 import java.util.NoSuchElementException;
-import javax.annotation.Nullable;
 
 /**
- * Abstract class for custom providers of @TestParameter values.
+ * Abstract class for custom providers of @TestParameters values.
  *
- * <p>This is a replacement for {@link TestParameter.TestParameterValuesProvider}, which is
+ * <p>This is a replacement for {@link TestParameters.TestParametersValuesProvider}, which is
  * deprecated. The difference with the former interface is that this class provides a {@code
  * Context} instance when invoking {@link #provideValues}.
  */
-public abstract class TestParameterValuesProvider
-    implements TestParameter.TestParameterValuesProvider {
+public abstract class TestParametersValuesProvider
+    implements TestParameters.TestParametersValuesProvider {
 
-  protected abstract List<?> provideValues(Context context) throws Exception;
+  protected abstract List<TestParametersValues> provideValues(Context context) throws Exception;
 
   /**
    * @deprecated This method should never be called as it will simply throw an {@link
@@ -41,23 +41,10 @@ public abstract class TestParameterValuesProvider
    */
   @Override
   @Deprecated
-  public final List<?> provideValues() {
+  public final List<TestParametersValues> provideValues() {
     throw new UnsupportedOperationException(
         "The TestParameterInjector framework should never call this method, and instead call"
             + " #provideValues(Context)");
-  }
-
-  /**
-   * Wraps the given value in an object that allows you to give the parameter value a different
-   * name. The TestParameterInjector framework will recognize the returned {@link
-   * TestParameterValue} instances and unwrap them at injection time.
-   *
-   * <p>Usage: {@code value(file.content).withName(file.name)}.
-   */
-  @Override
-  public final TestParameterValue value(@Nullable Object wrappedValue) {
-    // Overriding this method as final because it is not supposed to be overwritten
-    return TestParameterValue.wrap(wrappedValue);
   }
 
   /**
@@ -73,15 +60,17 @@ public abstract class TestParameterValuesProvider
     }
 
     /**
-     * Returns the only annotation with the given type on the field or parameter that was annotated
-     * with @TestParameter.
+     * Returns the only annotation with the given type on the method or constructor that was
+     * annotated with @TestParameters.
      *
      * <p>For example, if the test code is as follows:
      *
      * <pre>
      *   {@literal @}Test
-     *   public void myTest_success(
-     *       {@literal @}CustomAnnotation(123) {@literal @}TestParameter(valuesProvider=MyProvider.class) Foo foo) {
+     *   {@literal @}TestParameters("{updateRequest: {country_code: BE}, expectedResultType: SUCCESS}")
+     *   {@literal @}TestParameters("{updateRequest: {country_code: XYZ}, expectedResultType: FAILURE}")
+     *   {@literal @}CustomAnnotation(123)
+     *   public void update(UpdateRequest updateRequest, ResultType expectedResultType) {
      *     ...
      *   }
      * </pre>
@@ -90,30 +79,28 @@ public abstract class TestParameterValuesProvider
      *
      * @throws NoSuchElementException if this there is no annotation with the given type
      * @throws IllegalArgumentException if there are multiple annotations with the given type
-     * @throws IllegalArgumentException if the argument is TestParameter.class because it is already
-     *     handled by the TestParameterInjector framework.
+     * @throws IllegalArgumentException if the argument it TestParameters.class because it is
+     *     already handled by the TestParameterInjector framework.
      */
     public <A extends Annotation> A getOtherAnnotation(Class<A> annotationType) {
       checkArgument(
-          !TestParameter.class.equals(annotationType),
-          "Getting the @TestParameter annotating the field or parameter is not allowed because"
+          !TestParameters.class.equals(annotationType),
+          "Getting the @TestParameters annotating the method or constructor is not allowed because"
               + " it is already handled by the TestParameterInjector framework.");
       return delegate.getAnnotation(annotationType);
     }
 
     /**
-     * Returns all annotations with the given type on the field or parameter that was annotated
+     * Returns all annotations with the given type on the method or constructor that was annotated
      * with @TestParameter.
-     *
-     * <p>For example, if the test code is as follows:
      *
      * <pre>
      *   {@literal @}Test
-     *   public void myTest_success(
-     *       {@literal @}CustomAnnotation(123)
-     *       {@literal @}CustomAnnotation(456)
-     *       {@literal @}TestParameter(valuesProvider=MyProvider.class)
-     *       Foo foo) {
+     *   {@literal @}TestParameters("{updateRequest: {country_code: BE}, expectedResultType: SUCCESS}")
+     *   {@literal @}TestParameters("{updateRequest: {country_code: XYZ}, expectedResultType: FAILURE}")
+     *   {@literal @}CustomAnnotation(123)
+     *   {@literal @}CustomAnnotation(456)
+     *   public void update(UpdateRequest updateRequest, ResultType expectedResultType) {
      *     ...
      *   }
      * </pre>
@@ -123,13 +110,13 @@ public abstract class TestParameterValuesProvider
      *
      * <p>Returns an empty list if this there is no annotation with the given type.
      *
-     * @throws IllegalArgumentException if the argument is TestParameter.class because it is already
-     *     handled by the TestParameterInjector framework.
+     * @throws IllegalArgumentException if the argument it TestParameters.class because it is
+     *     already handled by the TestParameterInjector framework.
      */
     public <A extends Annotation> ImmutableList<A> getOtherAnnotations(Class<A> annotationType) {
       checkArgument(
-          !TestParameter.class.equals(annotationType),
-          "Getting the @TestParameter annotating the field or parameter is not allowed because"
+          !TestParameters.class.equals(annotationType),
+          "Getting the @TestParameters annotating the method or constructor is not allowed because"
               + " it is already handled by the TestParameterInjector framework.");
       return delegate.getAnnotations(annotationType);
     }
@@ -148,7 +135,7 @@ public abstract class TestParameterValuesProvider
       return delegate.testClass();
     }
 
-    /** A list of all annotations on the field or parameter. */
+    /** A list of all annotations on the method or constructor. */
     @VisibleForTesting
     ImmutableList<Annotation> annotationsOnParameter() {
       return delegate.annotationsOnParameter();

@@ -11,11 +11,12 @@ package {
 java_library {
     name: "TestParameterInjector",
     srcs: [
-        "src/main/java/**/*.java",
+        "junit4/src/main/java/**/*.java",
     ],
     static_libs: [
         "guava",
         "auto_value_annotations",
+        "error_prone_annotations",
         "junit",
         "libprotobuf-java-lite",
         "snakeyaml",
@@ -29,7 +30,10 @@ java_library {
         "//cts/tests/app/WallpaperTest",
         "//cts/tests/autofillservice",
         "//cts/tests/tests/app",
+        "//cts/tests/tests/car",
         "//cts/tests/tests/content",
+        "//cts/tests/tests/packageinstaller/install",
+        "//external/robolectric:__subpackages__",
         "//frameworks/base/core/tests/coretests",
         "//frameworks/base/libs/WindowManager/Shell/tests/unittest",
         "//frameworks/base/libs/WindowManager/Jetpack/tests/unittest",
@@ -39,16 +43,20 @@ java_library {
         "//frameworks/base/services/tests/vibrator",
         "//frameworks/base/tests/UsbManagerTests",
         "//packages/modules/Bluetooth/framework/tests/bumble",
+        "//packages/modules/HealthFitness/tests/unittests",
         "//vendor:__subpackages__",
     ],
 }
 
 java_test_host {
     name: "TestParameterInjectorTest",
-    srcs: ["src/test/java/**/*.java"],
+    srcs: ["junit4/src/test/java/**/*.java"],
     static_libs: [
         "TestParameterInjector",
         "truth",
+    ],
+    javacflags: [
+        "-parameters",
     ],
     test_options: {
         unit_test: true,

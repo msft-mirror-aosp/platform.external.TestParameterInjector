@@ -54,7 +54,7 @@ And add the following dependency to your `.pom` file:
 <dependency>
   <groupId>com.google.testparameterinjector</groupId>
   <artifactId>test-parameter-injector</artifactId>
-  <version>1.15</version>
+  <version>1.18</version>
   <scope>test</scope>
 </dependency>
 ```
@@ -97,7 +97,7 @@ And add the following dependency to your `.pom` file:
 <dependency>
   <groupId>com.google.testparameterinjector</groupId>
   <artifactId>test-parameter-injector-junit5</artifactId>
-  <version>1.15</version>
+  <version>1.18</version>
   <scope>test</scope>
 </dependency>
 ```
@@ -182,6 +182,10 @@ The following examples show most of the supported types. See the `@TestParameter
 
 // Bytes
 @TestParameter({"!!binary 'ZGF0YQ=='", "some_string"}) byte[] bytes;
+
+// Durations (segments of number+unit as shown below)
+@TestParameter({"1d", "2h", "3min", "4s", "5ms", "6us", "7ns"}) java.time.Duration d;
+@TestParameter({"1h30min", "-2h10min20s", "1.5h", ".5s", "0"}) java.time.Duration d;
 ```
 
 For non-primitive types (e.g. String, enums, bytes), `"null"` is always parsed as the `null` reference.
@@ -379,12 +383,15 @@ Instead of providing a YAML mapping of parameters, you can implement your own
 `TestParametersValuesProvider` as follows:
 
 ```java
+import com.google.testing.junit.testparameterinjector.TestParametersValuesProvider;
+import com.google.testing.junit.testparameterinjector.TestParameters.TestParametersValues;
+
 @Test
 @TestParameters(valuesProvider = IsAdultValueProvider.class)
 public void personIsAdult(int age, boolean expectIsAdult) { ... }
 
-static final class IsAdultValueProvider implements TestParametersValuesProvider {
-  @Override public ImmutableList<TestParametersValues> provideValues() {
+static final class IsAdultValueProvider extends TestParametersValuesProvider {
+  @Override public ImmutableList<TestParametersValues> provideValues(Context context) {
     return ImmutableList.of(
       TestParametersValues.builder()
         .name("teenager")

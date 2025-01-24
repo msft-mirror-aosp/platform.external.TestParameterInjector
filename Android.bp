@@ -32,6 +32,7 @@ java_library {
         "//cts/tests/tests/app",
         "//cts/tests/tests/car",
         "//cts/tests/tests/content",
+        "//cts/tests/tests/packageinstaller/criticaluserjourney",
         "//cts/tests/tests/packageinstaller/install",
         "//external/robolectric:__subpackages__",
         "//frameworks/base/core/tests/coretests",

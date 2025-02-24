@@ -44,6 +44,7 @@ java_library {
         "//frameworks/base/services/tests/uiservicestests",
         "//frameworks/base/services/tests/vibrator",
         "//frameworks/base/tests/UsbManagerTests",
+        "//frameworks/proto_logging/stats/stats_log_api_gen/test_java",
         "//packages/modules/Bluetooth:__subpackages__",
         "//packages/modules/HealthFitness:__subpackages__",
         "//vendor:__subpackages__",

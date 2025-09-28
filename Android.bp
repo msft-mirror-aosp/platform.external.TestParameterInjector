@@ -42,6 +42,7 @@ java_library {
         "//frameworks/base/libs/WindowManager/Jetpack/tests/unittest",
         "//frameworks/base/services/tests/displayservicetests",
         "//frameworks/base/services/tests/powerservicetests",
+        "//frameworks/base/services/tests/servicestests",
         "//frameworks/base/services/tests/uiservicestests",
         "//frameworks/base/services/tests/vibrator",
         "//frameworks/base/tests/UsbManagerTests",

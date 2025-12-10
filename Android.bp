@@ -34,6 +34,7 @@ java_library {
         "//cts/tests/tests/app",
         "//cts/tests/tests/car",
         "//cts/tests/tests/content",
+        "//cts/tests/tests/graphics",
         "//cts/tests/tests/packageinstaller/criticaluserjourney",
         "//cts/tests/tests/packageinstaller/install",
         "//cts/tests/tests/security",

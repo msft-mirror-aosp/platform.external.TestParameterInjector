@@ -31,6 +31,7 @@ java_library {
         "//cts/tests/app/WallpaperTest",
         "//cts/tests/autofillservice",
         "//cts/tests/mediapc",
+        "//cts/tests/surfacecontrol",
         "//cts/tests/tests/app",
         "//cts/tests/tests/car",
         "//cts/tests/tests/content",

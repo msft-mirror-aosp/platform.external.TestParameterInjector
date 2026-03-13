@@ -13,6 +13,7 @@ java_library {
     sdk_version: "current",
     srcs: [
         "junit4/src/main/java/**/*.java",
+        "junit4/src/main/java/**/*.kt",
     ],
     static_libs: [
         "guava",
@@ -21,6 +22,10 @@ java_library {
         "junit",
         "libprotobuf-java-lite",
         "snakeyaml",
+    ],
+    libs: [
+        "kotlin-stdlib",
+        "kotlin-reflect",
     ],
     plugins: [
         "auto_value_plugin",

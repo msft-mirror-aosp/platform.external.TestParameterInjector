@@ -13,6 +13,7 @@ java_library {
     sdk_version: "current",
     srcs: [
         "junit4/src/main/java/**/*.java",
+        "junit4/src/main/java/**/*.kt",
     ],
     static_libs: [
         "guava",
@@ -21,6 +22,10 @@ java_library {
         "junit",
         "libprotobuf-java-lite",
         "snakeyaml",
+    ],
+    libs: [
+        "kotlin-stdlib",
+        "kotlin-reflect",
     ],
     plugins: [
         "auto_value_plugin",
@@ -57,6 +62,7 @@ java_library {
         "//frameworks/proto_logging/stats/stats_log_api_gen/test_java",
         "//packages/modules/Bluetooth:__subpackages__",
         "//packages/modules/HealthFitness:__subpackages__",
+        "//packages/modules/Permission:__subpackages__",
         "//prebuilts/misc/common/androidx-media3",
         "//vendor:__subpackages__",
     ],

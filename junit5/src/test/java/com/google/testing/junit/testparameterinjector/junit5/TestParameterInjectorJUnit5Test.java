@@ -405,8 +405,7 @@ class TestParameterInjectorJUnit5Test {
 
   @RunAsTest(
       failsWithMessage =
-          "InvalidTest_TestParameters_EmptyAnnotation.test1(): Either a value or a valuesProvider"
-              + " must be set in @TestParameters")
+          "Either a value or a valuesProvider must be set in @TestParameters on test1()")
   public static class InvalidTest_TestParameters_EmptyAnnotation {
     @TestParameterInjectorTest
     @TestParameters
@@ -414,9 +413,7 @@ class TestParameterInjectorJUnit5Test {
   }
 
   @RunAsTest(
-      failsWithMessage =
-          "InvalidTest_TestParameters_EmptyAnnotationOnConstructor.constructor: Either a value or a"
-              + " valuesProvider must be set in @TestParameters")
+      failsWithMessage = "Either a value or a valuesProvider must be set in @TestParameters on ")
   public static class InvalidTest_TestParameters_EmptyAnnotationOnConstructor {
     @TestParameters
     public InvalidTest_TestParameters_EmptyAnnotationOnConstructor() {}
@@ -427,9 +424,9 @@ class TestParameterInjectorJUnit5Test {
 
   @RunAsTest(
       failsWithMessage =
-          "InvalidTest_TestParameters_CombiningValueWithProvider.test1(): It is not allowed to"
-              + " specify both value and valuesProvider in @TestParameters(value=[{testEnum: ONE}],"
-              + " valuesProvider=TestEnumValuesProvider)")
+          "It is not allowed to specify both value and valuesProvider in"
+              + " @TestParameters(value=[{testEnum: ONE}], valuesProvider=TestEnumValuesProvider)"
+              + " on test1()")
   public static class InvalidTest_TestParameters_CombiningValueWithProvider {
     @TestParameterInjectorTest
     @TestParameters(value = "{testEnum: ONE}", valuesProvider = TestEnumValuesProvider.class)
@@ -438,8 +435,7 @@ class TestParameterInjectorJUnit5Test {
 
   @RunAsTest(
       failsWithMessage =
-          "InvalidTest_TestParameters_RepeatedAnnotationIsEmpty.test1(): Either a value or a"
-              + " valuesProvider must be set in @TestParameters")
+          "Either a value or a valuesProvider must be set in @TestParameters on test1()")
   public static class InvalidTest_TestParameters_RepeatedAnnotationIsEmpty {
     @TestParameterInjectorTest
     @TestParameters(value = "{testEnum: ONE}")
@@ -449,10 +445,9 @@ class TestParameterInjectorJUnit5Test {
 
   @RunAsTest(
       failsWithMessage =
-          "InvalidTest_TestParameters_RepeatedAnnotationHasMultipleValues.test1(): When specifying"
-              + " more than one @TestParameter for a method/constructor, each annotation must have"
-              + " exactly one value. Instead, got 2 values: [{testEnum: TWO}, {testEnum:"
-              + " THREE}]")
+          "When specifying more than one @TestParameter for a method/constructor, each annotation"
+              + " must have exactly one value. Instead, got 2 values on test1(): [{testEnum: TWO},"
+              + " {testEnum: THREE}]")
   public static class InvalidTest_TestParameters_RepeatedAnnotationHasMultipleValues {
     @TestParameterInjectorTest
     @TestParameters(value = "{testEnum: ONE}")
@@ -462,9 +457,8 @@ class TestParameterInjectorJUnit5Test {
 
   @RunAsTest(
       failsWithMessage =
-          "InvalidTest_TestParameters_RepeatedAnnotationHasProvider.test1(): Setting a"
-              + " valuesProvider is not supported for methods/constructors with multiple"
-              + " @TestParameters annotations")
+          "Setting a valuesProvider is not supported for methods/constructors with"
+              + " multiple @TestParameters annotations on test1()")
   public static class InvalidTest_TestParameters_RepeatedAnnotationHasProvider {
     @TestParameterInjectorTest
     @TestParameters(valuesProvider = TestEnumValuesProvider.class)
@@ -474,9 +468,8 @@ class TestParameterInjectorJUnit5Test {
 
   @RunAsTest(
       failsWithMessage =
-          "InvalidTest_TestParameters_NamedAnnotationHasMultipleValues.test1(): Setting"
-              + " @TestParameters.customName is only allowed if there is exactly one YAML string in"
-              + " @TestParameters.value")
+          "Setting @TestParameters.customName is only allowed if there is exactly one YAML string"
+              + " in @TestParameters.value (on test1())")
   public static class InvalidTest_TestParameters_NamedAnnotationHasMultipleValues {
     @TestParameterInjectorTest
     @TestParameters(

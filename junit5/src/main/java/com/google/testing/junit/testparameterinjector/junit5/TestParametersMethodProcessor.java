@@ -19,7 +19,6 @@ import static com.google.common.base.Verify.verify;
 
 import com.google.auto.value.AutoAnnotation;
 import com.google.common.base.Optional;
-import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -30,8 +29,6 @@ import com.google.common.collect.Maps;
 import com.google.common.primitives.Primitives;
 import com.google.common.reflect.TypeToken;
 import com.google.testing.junit.testparameterinjector.junit5.TestInfo.TestInfoParameter;
-import com.google.testing.junit.testparameterinjector.junit5.TestParameterInjectorUtils.JavaCompatibilityExecutable;
-import com.google.testing.junit.testparameterinjector.junit5.TestParameterInjectorUtils.JavaCompatibilityParameter;
 import com.google.testing.junit.testparameterinjector.junit5.TestParameters.RepeatedTestParameters;
 import com.google.testing.junit.testparameterinjector.junit5.TestParameters.TestParametersValues;
 import com.google.testing.junit.testparameterinjector.junit5.TestParametersValuesProvider.Context;
@@ -40,30 +37,29 @@ import com.google.testing.junit.testparameterinjector.junit5.TestParameters.Defa
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Executable;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.ArrayList;
+import java.lang.reflect.Parameter;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 /** {@code TestMethodProcessor} implementation for supporting {@link TestParameters}. */
+@SuppressWarnings("AndroidJdkLibsChecker") // Parameter is not available on old Android SDKs.
 final class TestParametersMethodProcessor implements TestMethodProcessor {
 
-  private final Cache<Object, ImmutableList<TestParametersValues>>
+  private final Cache<Executable, ImmutableList<TestParametersValues>>
       parameterValuesByConstructorOrMethodCache =
           CacheBuilder.newBuilder().maximumSize(1000).build();
 
   @Override
   public ExecutableValidationResult validateConstructor(Constructor<?> constructor) {
-    JavaCompatibilityExecutable constructorExecutable =
-        JavaCompatibilityExecutable.create(constructor);
-    if (hasRelevantAnnotation(constructorExecutable)) {
+    if (hasRelevantAnnotation(constructor)) {
       try {
         // This method throws an exception if there is a validation error
-        ImmutableList<TestParametersValues> unused =
-            getExecutableParameters(constructorExecutable, constructor.getDeclaringClass());
+        ImmutableList<TestParametersValues> unused = getConstructorParameters(constructor);
       } catch (Throwable t) {
         return ExecutableValidationResult.validated(t);
       }
@@ -75,13 +71,10 @@ final class TestParametersMethodProcessor implements TestMethodProcessor {
 
   @Override
   public ExecutableValidationResult validateTestMethod(Method testMethod, Class<?> testClass) {
-    JavaCompatibilityExecutable testMethodExecutable =
-        JavaCompatibilityExecutable.create(testMethod);
-    if (hasRelevantAnnotation(testMethodExecutable)) {
+    if (hasRelevantAnnotation(testMethod)) {
       try {
         // This method throws an exception if there is a validation error
-        ImmutableList<TestParametersValues> unused =
-            getExecutableParameters(testMethodExecutable, testClass);
+        ImmutableList<TestParametersValues> unused = getMethodParameters(testMethod, testClass);
       } catch (Throwable t) {
         return ExecutableValidationResult.validated(t);
       }
@@ -93,25 +86,22 @@ final class TestParametersMethodProcessor implements TestMethodProcessor {
 
   @Override
   public List<TestInfo> calculateTestInfos(TestInfo originalTest) {
-    JavaCompatibilityExecutable constructorExecutable =
-        JavaCompatibilityExecutable.create(
+    boolean constructorIsParameterized =
+        hasRelevantAnnotation(
             TestParameterInjectorUtils.getOnlyConstructor(originalTest.getTestClass()));
-    JavaCompatibilityExecutable testMethodExecutable =
-        JavaCompatibilityExecutable.create(originalTest.getMethod());
+    boolean methodIsParameterized = hasRelevantAnnotation(originalTest.getMethod());
 
-    if (!hasRelevantAnnotation(constructorExecutable)
-        && !hasRelevantAnnotation(testMethodExecutable)) {
+    if (!constructorIsParameterized && !methodIsParameterized) {
       return ImmutableList.of(originalTest);
     }
 
     ImmutableList.Builder<TestInfo> testInfos = ImmutableList.builder();
 
     ImmutableList<Optional<TestParametersValues>> constructorParametersList =
-        getExecutableParametersOrSingleAbsentElement(
-            constructorExecutable, originalTest.getTestClass());
+        getConstructorParametersOrSingleAbsentElement(originalTest.getTestClass());
     ImmutableList<Optional<TestParametersValues>> methodParametersList =
-        getExecutableParametersOrSingleAbsentElement(
-            testMethodExecutable, originalTest.getTestClass());
+        getMethodParametersOrSingleAbsentElement(
+            originalTest.getMethod(), originalTest.getTestClass());
     for (int constructorParametersIndex = 0;
         constructorParametersIndex < constructorParametersList.size();
         ++constructorParametersIndex) {
@@ -156,10 +146,19 @@ final class TestParametersMethodProcessor implements TestMethodProcessor {
   }
 
   private ImmutableList<Optional<TestParametersValues>>
-      getExecutableParametersOrSingleAbsentElement(
-          JavaCompatibilityExecutable executable, Class<?> testClass) {
-    return hasRelevantAnnotation(executable)
-        ? FluentIterable.from(getExecutableParameters(executable, testClass))
+      getConstructorParametersOrSingleAbsentElement(Class<?> testClass) {
+    Constructor<?> constructor = TestParameterInjectorUtils.getOnlyConstructor(testClass);
+    return hasRelevantAnnotation(constructor)
+        ? FluentIterable.from(getConstructorParameters(constructor))
+            .transform(Optional::of)
+            .toList()
+        : ImmutableList.of(Optional.absent());
+  }
+
+  private ImmutableList<Optional<TestParametersValues>> getMethodParametersOrSingleAbsentElement(
+      Method method, Class<?> testClass) {
+    return hasRelevantAnnotation(method)
+        ? FluentIterable.from(getMethodParameters(method, testClass))
             .transform(Optional::of)
             .toList()
         : ImmutableList.of(Optional.absent());
@@ -168,36 +167,30 @@ final class TestParametersMethodProcessor implements TestMethodProcessor {
   @Override
   public Optional<List<Object>> maybeGetConstructorParameters(
       Constructor<?> constructor, TestInfo testInfo) {
-    return maybeGetExecutableParameters(
-        JavaCompatibilityExecutable.create(constructor),
-        testInfo.getTestClass(),
-        () -> testInfo.getAnnotation(TestIndexHolder.class).constructorParametersIndex());
+    if (hasRelevantAnnotation(constructor)) {
+      ImmutableList<TestParametersValues> parameterValuesList =
+          getConstructorParameters(constructor);
+      TestParametersValues parametersValues =
+          parameterValuesList.get(
+              testInfo.getAnnotation(TestIndexHolder.class).constructorParametersIndex());
+
+      return Optional.of(toParameterList(parametersValues, constructor.getParameters()));
+    } else {
+      return Optional.absent();
+    }
   }
 
   @Override
   public Optional<List<Object>> maybeGetTestMethodParameters(TestInfo testInfo) {
-    return maybeGetExecutableParameters(
-        JavaCompatibilityExecutable.create(testInfo.getMethod()),
-        testInfo.getTestClass(),
-        () -> testInfo.getAnnotation(TestIndexHolder.class).methodParametersIndex());
-  }
-
-  private Optional<List<Object>> maybeGetExecutableParameters(
-      JavaCompatibilityExecutable executable,
-      Class<?> testClass,
-      Supplier<Integer> parametersIndex) {
-    if (hasRelevantAnnotation(executable)) {
+    Method testMethod = testInfo.getMethod();
+    if (hasRelevantAnnotation(testMethod)) {
       ImmutableList<TestParametersValues> parameterValuesList =
-          getExecutableParameters(executable, testClass);
-      TestParametersValues parametersValues = parameterValuesList.get(parametersIndex.get());
+          getMethodParameters(testMethod, testInfo.getTestClass());
+      TestParametersValues parametersValues =
+          parameterValuesList.get(
+              testInfo.getAnnotation(TestIndexHolder.class).methodParametersIndex());
 
-      ImmutableList<JavaCompatibilityParameter> parameters =
-          getParametersWithKotlinFallback(executable);
-      return Optional.of(
-          FluentIterable.from(parameters)
-              .transform(
-                  parameter -> parametersValues.parametersMap().get(parameter.maybeGetName().get()))
-              .copyInto(new ArrayList<>(parameters.size())));
+      return Optional.of(toParameterList(parametersValues, testMethod.getParameters()));
     } else {
       return Optional.absent();
     }
@@ -206,11 +199,23 @@ final class TestParametersMethodProcessor implements TestMethodProcessor {
   @Override
   public void postProcessTestInstance(Object testInstance, TestInfo testInfo) {}
 
-  private ImmutableList<TestParametersValues> getExecutableParameters(
-      JavaCompatibilityExecutable executable, Class<?> testClass) {
+  private ImmutableList<TestParametersValues> getConstructorParameters(Constructor<?> constructor) {
     try {
       return parameterValuesByConstructorOrMethodCache.get(
-          executable.getJavaReflectVersion(), () -> toParameterValuesList(executable, testClass));
+          constructor, () -> toParameterValuesList(constructor, constructor.getDeclaringClass()));
+    } catch (ExecutionException e) {
+      // Rethrow IllegalStateException because they can be caused by user mistakes and the user
+      // doesn't need to know that the caching layer is in between.
+      Throwables.throwIfInstanceOf(e.getCause(), IllegalStateException.class);
+      throw new RuntimeException(e);
+    }
+  }
+
+  private ImmutableList<TestParametersValues> getMethodParameters(
+      Method method, Class<?> testClass) {
+    try {
+      return parameterValuesByConstructorOrMethodCache.get(
+          method, () -> toParameterValuesList(method, testClass));
     } catch (ExecutionException e) {
       // Rethrow IllegalStateException because they can be caused by user mistakes and the user
       // doesn't need to know that the caching layer is in between.
@@ -220,10 +225,9 @@ final class TestParametersMethodProcessor implements TestMethodProcessor {
   }
 
   private static ImmutableList<TestParametersValues> toParameterValuesList(
-      JavaCompatibilityExecutable executable, Class<?> testClass) {
-    ImmutableList<JavaCompatibilityParameter> parametersList =
-        getParametersWithKotlinFallback(executable);
-    checkParameterNamesArePresent(parametersList, executable);
+      Executable executable, Class<?> testClass) {
+    checkParameterNamesArePresent(executable);
+    ImmutableList<Parameter> parametersList = ImmutableList.copyOf(executable.getParameters());
 
     if (executable.isAnnotationPresent(TestParameters.class)) {
       checkState(
@@ -237,21 +241,21 @@ final class TestParametersMethodProcessor implements TestMethodProcessor {
 
       checkState(
           !(valueIsSet && valuesProviderIsSet),
-          "%s: It is not allowed to specify both value and valuesProvider in"
-              + " @TestParameters(value=%s, valuesProvider=%s)",
-          executable.getHumanReadableNameSummary(),
+          "It is not allowed to specify both value and valuesProvider in @TestParameters(value=%s,"
+              + " valuesProvider=%s) on %s()",
           Arrays.toString(annotation.value()),
-          annotation.valuesProvider().getSimpleName());
+          annotation.valuesProvider().getSimpleName(),
+          executable.getName());
       checkState(
           valueIsSet || valuesProviderIsSet,
-          "%s: Either a value or a valuesProvider must be set in @TestParameters",
-          executable.getHumanReadableNameSummary());
+          "Either a value or a valuesProvider must be set in @TestParameters on %s()",
+          executable.getName());
       if (!annotation.customName().isEmpty()) {
         checkState(
             annotation.value().length == 1,
-            "%s: Setting @TestParameters.customName is only allowed if there is exactly one YAML"
-                + " string in @TestParameters.value",
-            executable.getHumanReadableNameSummary());
+            "Setting @TestParameters.customName is only allowed if there is exactly one YAML string"
+                + " in @TestParameters.value (on %s())",
+            executable.getName());
       }
 
       if (valueIsSet) {
@@ -261,7 +265,9 @@ final class TestParametersMethodProcessor implements TestMethodProcessor {
             .toList();
       } else {
         return toParameterValuesList(
-            annotation.valuesProvider(), parametersList, executable, testClass);
+            annotation.valuesProvider(),
+            parametersList,
+            GenericParameterContext.create(executable, testClass));
       }
     } else { // Not annotated with @TestParameters
       verify(
@@ -282,44 +288,21 @@ final class TestParametersMethodProcessor implements TestMethodProcessor {
 
   private static ImmutableList<TestParametersValues> toParameterValuesList(
       Class<? extends TestParametersValuesProvider> valuesProvider,
-      List<JavaCompatibilityParameter> parameters,
-      JavaCompatibilityExecutable executable,
-      Class<?> testClass) {
+      List<Parameter> parameters,
+      GenericParameterContext context) {
     try {
       Constructor<? extends TestParametersValuesProvider> constructor =
           valuesProvider.getDeclaredConstructor();
       constructor.setAccessible(true);
       TestParametersValuesProvider provider = constructor.newInstance();
-      Context context = new Context(GenericParameterContext.create(executable, testClass));
       List<TestParametersValues> testParametersValues =
           provider
                   instanceof
                   com.google.testing.junit.testparameterinjector.junit5.TestParametersValuesProvider
               ? ((com.google.testing.junit.testparameterinjector.junit5.TestParametersValuesProvider)
                       provider)
-                  .provideValues(context)
+                  .provideValues(new Context(context))
               : provider.provideValues();
-      boolean valuesListCanBeEmpty =
-          provider
-                  instanceof
-                  com.google.testing.junit.testparameterinjector.junit5.TestParametersValuesProvider
-              ? ((com.google.testing.junit.testparameterinjector.junit5.TestParametersValuesProvider)
-                      provider)
-                  .valuesListCanBeEmptyWhichMeansThatTheTestWillBeSkipped()
-              : false;
-      if (!valuesListCanBeEmpty) {
-        checkState(
-            !testParametersValues.isEmpty(),
-            "%s: %s returned an empty list of TestParametersValues\n\n"
-                + "This usually indicates a bug because an empty list means the test as a whole"
-                + " will be skipped, even if there are other (field or constructor) test"
-                + " parameters.\n\n"
-                + "If this behavior is intended, please override"
-                + " valuesListCanBeEmptyWhichMeansThatTheTestWillBeSkipped() in your"
-                + " TestParametersValuesProvider.",
-            executable.getHumanReadableNameSummary(),
-            valuesProvider.getSimpleName());
-      }
       for (TestParametersValues testParametersValue : testParametersValues) {
         validateThatValuesMatchParameters(testParametersValue, parameters);
       }
@@ -343,10 +326,9 @@ final class TestParametersMethodProcessor implements TestMethodProcessor {
     }
   }
 
-  private static void checkParameterNamesArePresent(
-      List<JavaCompatibilityParameter> parameters, JavaCompatibilityExecutable executable) {
+  private static void checkParameterNamesArePresent(Executable executable) {
     checkState(
-        FluentIterable.from(parameters).allMatch(p -> p.maybeGetName().isPresent()),
+        FluentIterable.from(executable.getParameters()).allMatch(Parameter::isNamePresent),
         ""
             + "No parameter name could be found for %s, which likely means that parameter names"
             + " aren't available at runtime. Please ensure that the this test was built with the"
@@ -371,35 +353,35 @@ final class TestParametersMethodProcessor implements TestMethodProcessor {
             + "</build>\n"
             + "\n"
             + "Don't forget to run `mvn clean` after making this change.",
-        executable.getHumanReadableNameSummary());
+        executable.getName());
   }
 
   private static String validateAndGetSingleValueFromRepeatedAnnotation(
-      TestParameters annotation, JavaCompatibilityExecutable executable) {
+      TestParameters annotation, Executable executable) {
     checkState(
         annotation.valuesProvider().equals(DefaultTestParametersValuesProvider.class),
-        "%s: Setting a valuesProvider is not supported for methods/constructors with"
-            + " multiple @TestParameters annotations",
-        executable.getHumanReadableNameSummary());
+        "Setting a valuesProvider is not supported for methods/constructors with"
+            + " multiple @TestParameters annotations on %s()",
+        executable.getName());
     checkState(
         annotation.value().length > 0,
-        "%s: Either a value or a valuesProvider must be set in @TestParameters",
-        executable.getHumanReadableNameSummary());
+        "Either a value or a valuesProvider must be set in @TestParameters on %s()",
+        executable.getName());
     checkState(
         annotation.value().length == 1,
-        "%s: When specifying more than one @TestParameter for a method/constructor, each annotation"
-            + " must have exactly one value. Instead, got %s values: %s",
-        executable.getHumanReadableNameSummary(),
+        "When specifying more than one @TestParameter for a method/constructor, each annotation"
+            + " must have exactly one value. Instead, got %s values on %s(): %s",
         annotation.value().length,
+        executable.getName(),
         Arrays.toString(annotation.value()));
 
     return annotation.value()[0];
   }
 
   private static void validateThatValuesMatchParameters(
-      TestParametersValues testParametersValues, List<JavaCompatibilityParameter> parameters) {
-    ImmutableMap<String, JavaCompatibilityParameter> parametersByName =
-        Maps.uniqueIndex(parameters, p -> p.maybeGetName().get());
+      TestParametersValues testParametersValues, List<Parameter> parameters) {
+    ImmutableMap<String, Parameter> parametersByName =
+        Maps.uniqueIndex(parameters, Parameter::getName);
 
     checkState(
         testParametersValues.parametersMap().keySet().equals(parametersByName.keySet()),
@@ -428,7 +410,7 @@ final class TestParametersMethodProcessor implements TestMethodProcessor {
   }
 
   private static TestParametersValues toParameterValues(
-      String yamlString, List<JavaCompatibilityParameter> parameters, String maybeCustomName) {
+      String yamlString, List<Parameter> parameters, String maybeCustomName) {
     Object yamlMapObject = ParameterValueParsing.parseYamlStringToObject(yamlString);
     checkState(
         yamlMapObject instanceof Map,
@@ -436,8 +418,8 @@ final class TestParametersMethodProcessor implements TestMethodProcessor {
         yamlString);
     Map<?, ?> yamlMap = (Map<?, ?>) yamlMapObject;
 
-    ImmutableMap<String, JavaCompatibilityParameter> parametersByName =
-        Maps.uniqueIndex(parameters, p -> p.maybeGetName().get());
+    ImmutableMap<String, Parameter> parametersByName =
+        Maps.uniqueIndex(parameters, Parameter::getName);
     checkState(
         yamlMap.keySet().equals(parametersByName.keySet()),
         "Cannot map YAML string '%s' to parameters %s",
@@ -459,18 +441,26 @@ final class TestParametersMethodProcessor implements TestMethodProcessor {
         .build();
   }
 
-  private static boolean hasRelevantAnnotation(JavaCompatibilityExecutable executable) {
+  // Note: We're not using the Executable interface here because it isn't supported by Java 7 and
+  // this code is called even if only @TestParameter is used. In other places, Executable is usable
+  // because @TestParameters only works for Java 8 anyway.
+  private static boolean hasRelevantAnnotation(Constructor<?> executable) {
     return executable.isAnnotationPresent(TestParameters.class)
         || executable.isAnnotationPresent(RepeatedTestParameters.class);
   }
 
-  @SuppressWarnings("KotlinInternal")
-  private static ImmutableList<JavaCompatibilityParameter> getParametersWithKotlinFallback(
-      JavaCompatibilityExecutable executable) {
-    return executable.getParametersWithFallback(
-        TestParameterInjectorUtils.isKotlinClass(executable.getDeclaringClass())
-            ? KotlinHooksForTestParameterInjector.getParameterNames(executable)
-            : Optional.absent());
+  private static boolean hasRelevantAnnotation(Method executable) {
+    return executable.isAnnotationPresent(TestParameters.class)
+        || executable.isAnnotationPresent(RepeatedTestParameters.class);
+  }
+
+  private static List<Object> toParameterList(
+      TestParametersValues parametersValues, Parameter[] parameters) {
+    return Arrays.asList(
+        FluentIterable.from(Arrays.asList(parameters))
+            .transform(Parameter::getName)
+            .transform(name -> parametersValues.parametersMap().get(name))
+            .toArray(Object.class));
   }
 
   /**

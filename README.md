@@ -54,7 +54,7 @@ And add the following dependency to your `.pom` file:
 <dependency>
   <groupId>com.google.testparameterinjector</groupId>
   <artifactId>test-parameter-injector</artifactId>
-  <version>1.21</version>
+  <version>1.18</version>
   <scope>test</scope>
 </dependency>
 ```
@@ -97,7 +97,7 @@ And add the following dependency to your `.pom` file:
 <dependency>
   <groupId>com.google.testparameterinjector</groupId>
   <artifactId>test-parameter-injector-junit5</artifactId>
-  <version>1.21</version>
+  <version>1.18</version>
   <scope>test</scope>
 </dependency>
 ```
@@ -361,7 +361,7 @@ Notes:
 -   The returned objects' `toString()` will be used for the test names. If you
     want to customize the value names, you can do that as follows:
 
-    ```java
+    ```
     private static final class FruitProvider extends TestParameterValuesProvider {
       @Override
       public List<?> provideValues(Context context) {

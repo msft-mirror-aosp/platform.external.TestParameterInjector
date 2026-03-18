@@ -14,19 +14,21 @@
 
 package com.google.testing.junit.testparameterinjector;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.Iterables.getOnlyElement;
 
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
+import com.google.common.base.Optional;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Ordering;
-import com.google.testing.junit.testparameterinjector.TestParameterInjectorUtils.JavaCompatibilityExecutable;
-import com.google.testing.junit.testparameterinjector.TestParameterInjectorUtils.JavaCompatibilityParameter;
 import java.lang.annotation.Annotation;
+import java.lang.annotation.Repeatable;
+import java.lang.reflect.Executable;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
+import java.lang.reflect.Proxy;
 import java.util.NoSuchElementException;
 
 /** A value class that contains extra information about the context of a field or parameter. */
@@ -52,6 +54,7 @@ final class GenericParameterContext {
 
   // Field.getAnnotationsByType() is not available on old Android SDKs. There is a fallback in that
   // case in this method.
+  @SuppressWarnings("AndroidJdkLibsChecker")
   static GenericParameterContext create(Field field, Class<?> testClass) {
     return new GenericParameterContext(
         ImmutableList.copyOf(field.getAnnotations()),
@@ -59,8 +62,8 @@ final class GenericParameterContext {
           try {
             return ImmutableList.copyOf(field.getAnnotationsByType(annotationType));
           } catch (NoSuchMethodError ignored) {
-            return TestParameterInjectorUtils.filterSingleAndRepeatedAnnotations(
-                field.getAnnotations(), annotationType);
+            return getAnnotationsFallback(
+                ImmutableList.copyOf(field.getAnnotations()), annotationType);
           }
         },
         testClass);
@@ -68,6 +71,7 @@ final class GenericParameterContext {
 
   // Parameter is not available on old Android SDKs, and isn't desugared. That's why this method
   // should only be called with a fallback.
+  @SuppressWarnings("AndroidJdkLibsChecker")
   static GenericParameterContext create(Parameter parameter, Class<?> testClass) {
     return new GenericParameterContext(
         ImmutableList.copyOf(parameter.getAnnotations()),
@@ -76,16 +80,10 @@ final class GenericParameterContext {
         testClass);
   }
 
-  static GenericParameterContext create(JavaCompatibilityParameter parameter, Class<?> testClass) {
-    return new GenericParameterContext(
-        ImmutableList.copyOf(parameter.getAnnotations()),
-        /* getAnnotationsFunction= */ annotationType ->
-            ImmutableList.copyOf(parameter.getAnnotationsByType(annotationType)),
-        testClass);
-  }
-
-  static GenericParameterContext create(
-      JavaCompatibilityExecutable executable, Class<?> testClass) {
+  // Executable is not available on old Android SDKs, and isn't desugared. This method is only
+  // called via @TestParameters, wich only supports newer SDKs anyway.
+  @SuppressWarnings("AndroidJdkLibsChecker")
+  static GenericParameterContext create(Executable executable, Class<?> testClass) {
     return new GenericParameterContext(
         ImmutableList.copyOf(executable.getAnnotations()),
         /* getAnnotationsFunction= */ annotationType ->
@@ -93,10 +91,20 @@ final class GenericParameterContext {
         testClass);
   }
 
+  static GenericParameterContext createWithRepeatableAnnotationsFallback(
+      Annotation[] annotationsOnParameter, Class<?> testClass) {
+    return new GenericParameterContext(
+        ImmutableList.copyOf(annotationsOnParameter),
+        /* getAnnotationsFunction= */ annotationType ->
+            getAnnotationsFallback(ImmutableList.copyOf(annotationsOnParameter), annotationType),
+        testClass);
+  }
+
   static GenericParameterContext createWithoutParameterAnnotations(Class<?> testClass) {
     return new GenericParameterContext(
         /* annotationsOnParameter= */ ImmutableList.of(),
-        /* getAnnotationsFunction= */ annotationType -> ImmutableList.of(),
+        /* getAnnotationsFunction= */ annotationType ->
+            getAnnotationsFallback(ImmutableList.of(), annotationType),
         testClass);
   }
 
@@ -108,21 +116,11 @@ final class GenericParameterContext {
    */
   @SuppressWarnings("unchecked") // Safe because of the filter operation
   <A extends Annotation> A getAnnotation(Class<A> annotationType) {
-    ImmutableList<A> candidates =
-        (ImmutableList<A>)
+    return (A)
+        getOnlyElement(
             FluentIterable.from(annotationsOnParameter)
                 .filter(annotation -> annotation.annotationType().equals(annotationType))
-                .toList();
-    checkArgument(
-        candidates.size() <= 1,
-        "Expected at most one annotation of type %s, but got %s",
-        annotationType.getSimpleName(),
-        candidates);
-    checkArgument(
-        !candidates.isEmpty(),
-        "Expected at least one annotation of type %s, but got none",
-        annotationType.getSimpleName());
-    return getOnlyElement(candidates);
+                .toList());
   }
 
   /**
@@ -156,5 +154,50 @@ final class GenericParameterContext {
                 annotation -> String.format("@%s", annotation.annotationType().getSimpleName()))
             .join(Joiner.on(',')),
         testClass().getSimpleName());
+  }
+
+  private static ImmutableList<Annotation> getAnnotationsFallback(
+      ImmutableList<Annotation> annotationsOnParameter,
+      Class<? extends Annotation> annotationType) {
+    ImmutableList<Annotation> candidates =
+        FluentIterable.from(annotationsOnParameter)
+            .filter(annotation -> annotation.annotationType().equals(annotationType))
+            .toList();
+    if (candidates.isEmpty() && getContainerType(annotationType).isPresent()) {
+      ImmutableList<Annotation> containerAnnotations =
+          getAnnotationsFallback(annotationsOnParameter, getContainerType(annotationType).get());
+      if (containerAnnotations.size() == 1) {
+        Annotation containerAnnotation = getOnlyElement(containerAnnotations);
+        try {
+          Method annotationValueMethod =
+              containerAnnotation.annotationType().getDeclaredMethod("value");
+          annotationValueMethod.setAccessible(true);
+          return ImmutableList.copyOf(
+              (Annotation[])
+                  Proxy.getInvocationHandler(containerAnnotation)
+                      .invoke(containerAnnotation, annotationValueMethod, null));
+        } catch (Throwable e) {
+          throw new RuntimeException(e);
+        }
+      }
+      return ImmutableList.of();
+    } else {
+      return candidates;
+    }
+  }
+
+  private static Optional<Class<? extends Annotation>> getContainerType(
+      Class<? extends Annotation> annotationType) {
+    try {
+      Repeatable repeatable = annotationType.getAnnotation(Repeatable.class);
+      if (repeatable == null) {
+        return Optional.absent();
+      } else {
+        return Optional.of(repeatable.value());
+      }
+    } catch (NoClassDefFoundError ignored) {
+      // If @Repeatable does not exist, then there is no container type by definition
+      return Optional.absent();
+    }
   }
 }

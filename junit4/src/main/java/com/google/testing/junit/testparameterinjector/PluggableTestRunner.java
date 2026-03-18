@@ -109,17 +109,6 @@ abstract class PluggableTestRunner extends BlockJUnit4ClassRunner {
             .toList());
   }
 
-  /**
-   * Returns a list of test methods to run, based on the given list of methods.
-   *
-   * <p>This is useful for runners that want to filter the list of methods to run, or that want to
-   * run a specific set of methods (e.g. from a different class loader).
-   */
-  public final ImmutableList<FrameworkMethod> computeTestMethods(List<FrameworkMethod> methods) {
-    return sortTestMethods(
-        FluentIterable.from(methods).transformAndConcat(this::processMethod).toList());
-  }
-
   /** Implementation of a JUnit FrameworkMethod where the name and annotation list is overridden. */
   private static class OverriddenFrameworkMethod extends FrameworkMethod {
 
@@ -323,18 +312,6 @@ abstract class PluggableTestRunner extends BlockJUnit4ClassRunner {
     finalizeCreatedTestInstance(testInstance);
 
     return testInstance;
-  }
-
-  @Override
-  protected void validateOnlyOneConstructor(List<Throwable> errors) {
-    // Replace the default check by TestParameterInjectorUtils.validateOnlyOneConstructor() because
-    // it is more lenient.
-    try {
-      TestParameterInjectorUtils.validateOnlyOneConstructor(
-          getTestClass().getJavaClass(), /* allowNonPublicConstructor= */ false);
-    } catch (RuntimeException e) {
-      errors.add(e);
-    }
   }
 
   @Override

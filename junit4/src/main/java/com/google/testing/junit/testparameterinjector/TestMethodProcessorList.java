@@ -44,7 +44,9 @@ final class TestMethodProcessorList {
    */
   public static TestMethodProcessorList createNewParameterizedProcessors() {
     return new TestMethodProcessorList(
-        ImmutableList.of(new TestParametersMethodProcessor(), new TestParameterMethodProcessor()));
+        ImmutableList.of(
+            new TestParametersMethodProcessor(),
+            TestParameterAnnotationMethodProcessor.onlyForFieldsAndParameters()));
   }
 
   static TestMethodProcessorList empty() {

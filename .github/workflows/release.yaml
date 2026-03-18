@@ -13,8 +13,7 @@
 # the License.
 
 name: release
-permissions:
-  contents: write
+
 on:
   push:
     tags:
@@ -25,12 +24,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
-      - uses: actions/setup-java@v5
+      - uses: actions/setup-java@v3
         with:
           distribution: 'zulu'
-          java-version: 17
+          java-version: 11
 
       - run: mvn javadoc:javadoc
 

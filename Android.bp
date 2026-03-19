@@ -39,6 +39,7 @@ java_library {
         "//cts/tests/tests/packageinstaller/criticaluserjourney",
         "//cts/tests/tests/packageinstaller/install",
         "//cts/tests/tests/security",
+        "//external/libtextclassifier:__subpackages__",
         "//external/protobuf:__subpackages__",
         "//external/robolectric:__subpackages__",
         "//external/jetpack-camera-app:__subpackages__",

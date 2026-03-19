@@ -13,7 +13,6 @@ java_library {
     sdk_version: "current",
     srcs: [
         "junit4/src/main/java/**/*.java",
-        "junit4/src/main/java/**/*.kt",
     ],
     static_libs: [
         "guava",
@@ -22,10 +21,6 @@ java_library {
         "junit",
         "libprotobuf-java-lite",
         "snakeyaml",
-    ],
-    libs: [
-        "kotlin-stdlib",
-        "kotlin-reflect",
     ],
     plugins: [
         "auto_value_plugin",
@@ -44,6 +39,7 @@ java_library {
         "//cts/tests/tests/packageinstaller/criticaluserjourney",
         "//cts/tests/tests/packageinstaller/install",
         "//cts/tests/tests/security",
+        "//external/libtextclassifier:__subpackages__",
         "//external/protobuf:__subpackages__",
         "//external/robolectric:__subpackages__",
         "//external/jetpack-camera-app:__subpackages__",

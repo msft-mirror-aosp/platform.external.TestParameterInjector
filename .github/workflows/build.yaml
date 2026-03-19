@@ -13,8 +13,7 @@
 # the License.
 
 name: build
-permissions:
-  contents: write
+
 on:
   pull_request: {}
   push:
@@ -28,12 +27,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
-      - uses: actions/setup-java@v5
+      - uses: actions/setup-java@v3
         with:
           distribution: 'zulu'
-          java-version: 17
+          java-version: 11
           cache: maven
 
       - run: mvn --update-snapshots -B verify javadoc:javadoc

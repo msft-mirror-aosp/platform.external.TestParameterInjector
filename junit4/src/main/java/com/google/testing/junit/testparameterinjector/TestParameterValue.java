@@ -17,8 +17,6 @@ package com.google.testing.junit.testparameterinjector;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.base.Optional;
-import com.google.common.collect.FluentIterable;
-import com.google.common.collect.ImmutableList;
 import javax.annotation.Nullable;
 
 /**
@@ -39,18 +37,6 @@ public class TestParameterValue {
     return new TestParameterValue(wrappedValue, /* customName= */ Optional.absent());
   }
 
-  /** Wraps the given value unless it is already of this type. */
-  static TestParameterValue maybeWrap(@Nullable Object value) {
-    return (value instanceof TestParameterValue)
-        ? (TestParameterValue) value
-        : TestParameterValue.wrap(value);
-  }
-
-  /** Applies maybeWrap() to the given elements. */
-  static ImmutableList<TestParameterValue> maybeWrapList(Iterable<Object> values) {
-    return FluentIterable.from(values).transform(TestParameterValue::maybeWrap).toList();
-  }
-
   /**
    * Returns a new {@link TestParameterValue} instance that stores the given name. The
    * TestParameterInjector framework will use this name instead of {@code wrappedValue.toString()}
@@ -67,12 +53,5 @@ public class TestParameterValue {
 
   Optional<String> getCustomName() {
     return customName;
-  }
-
-  @Override
-  public String toString() {
-    return customName.isPresent()
-        ? String.format("%s (name = %s)", wrappedValue, customName.get())
-        : String.valueOf(wrappedValue);
   }
 }

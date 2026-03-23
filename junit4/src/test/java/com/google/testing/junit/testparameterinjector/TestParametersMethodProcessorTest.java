@@ -22,6 +22,7 @@ import static com.google.common.truth.TruthJUnit.assume;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
 import static org.junit.Assert.assertThrows;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -35,7 +36,6 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-import java.util.Optional;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -537,7 +537,8 @@ public class TestParametersMethodProcessorTest {
 
   @RunAsTest(
       failsWithMessage =
-          "Either a value or a valuesProvider must be set in @TestParameters on test1()")
+          "InvalidTestBecauseEmptyAnnotation.test1(): Either a value or a valuesProvider must be"
+              + " set in @TestParameters")
   public static class InvalidTestBecauseEmptyAnnotation {
     @Test
     @TestParameters
@@ -546,9 +547,8 @@ public class TestParametersMethodProcessorTest {
 
   @RunAsTest(
       failsWithMessage =
-          "Either a value or a valuesProvider must be set in @TestParameters on"
-              + " com.google.testing.junit.testparameterinjector.TestParametersMethodProcessorTest"
-              + "$InvalidTestBecauseEmptyAnnotationOnConstructor()")
+          "InvalidTestBecauseEmptyAnnotationOnConstructor.constructor: Either a value or a"
+              + " valuesProvider must be set in @TestParameters")
   public static class InvalidTestBecauseEmptyAnnotationOnConstructor {
     @TestParameters
     public InvalidTestBecauseEmptyAnnotationOnConstructor() {}
@@ -559,9 +559,9 @@ public class TestParametersMethodProcessorTest {
 
   @RunAsTest(
       failsWithMessage =
-          "It is not allowed to specify both value and valuesProvider in"
-              + " @TestParameters(value=[{testEnum: ONE}], valuesProvider=TestEnumValuesProvider)"
-              + " on test1()")
+          "InvalidTestBecauseCombiningValueWithProvider.test1(): It is not allowed to specify both"
+              + " value and valuesProvider in @TestParameters(value=[{testEnum: ONE}],"
+              + " valuesProvider=TestEnumValuesProvider)")
   public static class InvalidTestBecauseCombiningValueWithProvider {
 
     @Test
@@ -571,7 +571,8 @@ public class TestParametersMethodProcessorTest {
 
   @RunAsTest(
       failsWithMessage =
-          "Either a value or a valuesProvider must be set in @TestParameters on test1()")
+          "InvalidTestBecauseRepeatedAnnotationIsEmpty.test1(): Either a value or a valuesProvider"
+              + " must be set in @TestParameters")
   public static class InvalidTestBecauseRepeatedAnnotationIsEmpty {
     @Test
     @TestParameters(value = "{testEnum: ONE}")
@@ -581,9 +582,9 @@ public class TestParametersMethodProcessorTest {
 
   @RunAsTest(
       failsWithMessage =
-          "When specifying more than one @TestParameter for a method/constructor, each annotation"
-              + " must have exactly one value. Instead, got 2 values on test1(): [{testEnum: TWO},"
-              + " {testEnum: THREE}]")
+          "InvalidTestBecauseRepeatedAnnotationHasMultipleValues.test1(): When specifying more than"
+              + " one @TestParameter for a method/constructor, each annotation must have exactly"
+              + " one value. Instead, got 2 values: [{testEnum: TWO}, {testEnum: THREE}]")
   public static class InvalidTestBecauseRepeatedAnnotationHasMultipleValues {
     @Test
     @TestParameters(value = "{testEnum: ONE}")
@@ -593,8 +594,8 @@ public class TestParametersMethodProcessorTest {
 
   @RunAsTest(
       failsWithMessage =
-          "Setting a valuesProvider is not supported for methods/constructors with"
-              + " multiple @TestParameters annotations on test1()")
+          "InvalidTestBecauseRepeatedAnnotationHasProvider.test1(): Setting a valuesProvider is not"
+              + " supported for methods/constructors with multiple @TestParameters annotations")
   public static class InvalidTestBecauseRepeatedAnnotationHasProvider {
     @Test
     @TestParameters(valuesProvider = TestEnumValuesProvider.class)
@@ -604,8 +605,9 @@ public class TestParametersMethodProcessorTest {
 
   @RunAsTest(
       failsWithMessage =
-          "Setting @TestParameters.customName is only allowed if there is exactly one YAML string"
-              + " in @TestParameters.value (on test1())")
+          "InvalidTestBecauseNamedAnnotationHasMultipleValues.test1(): Setting"
+              + " @TestParameters.customName is only allowed if there is exactly one YAML string in"
+              + " @TestParameters.value")
   public static class InvalidTestBecauseNamedAnnotationHasMultipleValues {
     @Test
     @TestParameters(
@@ -614,12 +616,30 @@ public class TestParametersMethodProcessorTest {
     public void test1(TestEnum testEnum) {}
   }
 
-  @RunAsTest(failsWithMessage = "Test class should have exactly one public constructor")
+  @RunAsTest(failsWithMessage = "Expected exactly one constructor, but got []")
   public static class InvalidTestBecausePackagePrivateConstructor {
     InvalidTestBecausePackagePrivateConstructor() {}
 
     @Test
     public void test1() {}
+  }
+
+  @RunAsTest(
+      failsWithMessage =
+          "InvalidTestBecauseProviderReturnsZeroValues.test1(): ReturnZeroValuesProvider returned"
+              + " an empty list of TestParametersValues")
+  public static class InvalidTestBecauseProviderReturnsZeroValues {
+
+    @Test
+    @TestParameters(valuesProvider = ReturnZeroValuesProvider.class)
+    public void test1(TestEnum testEnum) {}
+
+    private static final class ReturnZeroValuesProvider extends TestParametersValuesProvider {
+      @Override
+      protected List<TestParametersValues> provideValues(Context context) {
+        return ImmutableList.of();
+      }
+    }
   }
 
   @Parameters(name = "{0}")
@@ -641,7 +661,7 @@ public class TestParametersMethodProcessorTest {
       String name, Class<?> testClass, String failsWithMessage) {
     this.testClass = testClass;
     this.maybeFailureMessage =
-        failsWithMessage.isEmpty() ? Optional.empty() : Optional.of(failsWithMessage);
+        failsWithMessage.isEmpty() ? Optional.absent() : Optional.of(failsWithMessage);
   }
 
   @Test
@@ -655,12 +675,12 @@ public class TestParametersMethodProcessorTest {
   public void test_failure() throws Exception {
     assume().that(maybeFailureMessage.isPresent()).isTrue();
 
-    Exception exception =
+    Throwable throwable =
         assertThrows(
-            Exception.class,
-            () -> SharedTestUtilitiesJUnit4.runTestsAndGetFailures(newTestRunner()));
+            Throwable.class,
+            () -> SharedTestUtilitiesJUnit4.runTestsAndAssertNoFailures(newTestRunner()));
 
-    assertThat(exception).hasMessageThat().contains(maybeFailureMessage.get());
+    assertThat(throwable).hasMessageThat().contains(maybeFailureMessage.get());
   }
 
   private PluggableTestRunner newTestRunner() throws Exception {
@@ -669,6 +689,8 @@ public class TestParametersMethodProcessorTest {
 
   private static ImmutableList<Class<? extends Annotation>> annotationTypes(
       Iterable<Annotation> annotations) {
-    return FluentIterable.from(annotations).transform(Annotation::annotationType).toList();
+    return FluentIterable.from(annotations)
+        .<Class<? extends Annotation>>transform(Annotation::annotationType)
+        .toList();
   }
 }

@@ -91,16 +91,16 @@
     <url>http://github.com/google/testparameterinjector/issues</url>
   </issueManagement>
   <distributionManagement>
-    <snapshotRepository>
-      <id>sonatype-nexus-snapshots</id>
-      <name>Sonatype Nexus Snapshots</name>
-      <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
-    </snapshotRepository>
     <repository>
-      <id>sonatype-nexus-staging</id>
-      <name>Nexus Release Repository</name>
-      <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+      <id>central</id>
+      <name>Maven Central Repository</name>
+      <url>https://central.sonatype.com</url>
     </repository>
+    <snapshotRepository>
+      <id>central</id>
+      <name>Maven Central Repository Snapshots</name>
+      <url>https://central.sonatype.com/repository/maven-snapshots/</url>
+    </snapshotRepository>
   </distributionManagement>
 
   <prerequisites>
@@ -109,6 +109,7 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <kotlin.version>2.2.20</kotlin.version>
   </properties>
 
   <dependencies>
@@ -133,6 +134,16 @@
       <artifactId>snakeyaml</artifactId>
       <version>2.0</version>
     </dependency>
+    <dependency>
+      <groupId>org.jetbrains.kotlin</groupId>
+      <artifactId>kotlin-reflect</artifactId>
+      <version>${kotlin.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.jetbrains.kotlin</groupId>
+      <artifactId>kotlin-stdlib</artifactId>
+      <version>${kotlin.version}</version>
+    </dependency>
 
     <!-- Test dependencies -->
     <dependency>
@@ -144,7 +155,7 @@
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-javalite</artifactId>
-      <version>3.20.3</version>
+      <version>3.25.5</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
@@ -155,6 +166,39 @@
       <plugin>
         <artifactId>maven-jar-plugin</artifactId>
         <version>3.2.0</version>
+      </plugin>
+      <plugin>
+        <groupId>org.jetbrains.kotlin</groupId>
+        <artifactId>kotlin-maven-plugin</artifactId>
+        <version>${kotlin.version}</version>
+        <executions>
+          <execution>
+            <id>compile</id>
+            <phase>process-sources</phase>
+            <goals>
+              <goal>compile</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>test-compile</id>
+            <phase>process-test-sources</phase>
+            <goals>
+              <goal>test-compile</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <jvmTarget>17</jvmTarget>
+          <javaParameters>true</javaParameters>
+          <args>
+            <!--
+              Opt in to upcoming Kotlin compiler change which is causing issues with
+              TestParameterInjector. See https://github.com/google/TestParameterInjector/issues/49
+              for more info.
+            -->
+            <arg>-Xannotation-default-target=param-property</arg>
+          </args>
+        </configuration>
       </plugin>
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
@@ -233,6 +277,15 @@
                 </goals>
               </execution>
             </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.sonatype.central</groupId>
+            <artifactId>central-publishing-maven-plugin</artifactId>
+            <version>0.8.0</version>
+            <extensions>true</extensions>
+            <configuration>
+              <publishingServerId>central</publishingServerId>
+            </configuration>
           </plugin>
         </plugins>
       </build>

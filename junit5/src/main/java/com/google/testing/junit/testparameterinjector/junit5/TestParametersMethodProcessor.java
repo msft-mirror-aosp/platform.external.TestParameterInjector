@@ -438,8 +438,9 @@ final class TestParametersMethodProcessor implements TestMethodProcessor {
         Maps.uniqueIndex(parameters, p -> p.maybeGetName().get());
     checkState(
         yamlMap.keySet().equals(parametersByName.keySet()),
-        "Cannot map YAML string '%s' to parameters %s",
+        "Cannot map YAML string '%s', with keys of %s, to parameters %s",
         yamlString,
+        yamlMap.keySet(),
         parametersByName.keySet());
 
     @SuppressWarnings("unchecked")

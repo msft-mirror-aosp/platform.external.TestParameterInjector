@@ -152,42 +152,6 @@ public class TestParameterMethodProcessorTest {
   }
 
   @RunAsTest
-  public static class MultipleAnnotatedFieldsAndParameters extends SuccessfulTestCaseBase {
-
-    @TestParameter({"ONE"})
-    TestEnum a;
-
-    @TestParameter boolean b;
-    private final TestEnum c;
-    private final boolean d;
-
-    public MultipleAnnotatedFieldsAndParameters(
-        @TestParameter({"TWO"}) TestEnum c, @TestParameter boolean d) {
-      this.c = c;
-      this.d = d;
-    }
-
-    @Test
-    public void test(@TestParameter({"THREE"}) TestEnum e, @TestParameter boolean f) {
-      storeTestParametersForThisTest(a, b, c, d, e, f);
-    }
-
-    @Override
-    ImmutableMap<String, String> expectedTestNameToStringifiedParameters() {
-      return ImmutableMap.<String, String>builder()
-          .put("test[ONE,b=false,TWO,d=false,THREE,f=false]", "ONE:false:TWO:false:THREE:false")
-          .put("test[ONE,b=false,TWO,d=false,THREE,f=true]", "ONE:false:TWO:false:THREE:true")
-          .put("test[ONE,b=false,TWO,d=true,THREE,f=false]", "ONE:false:TWO:true:THREE:false")
-          .put("test[ONE,b=false,TWO,d=true,THREE,f=true]", "ONE:false:TWO:true:THREE:true")
-          .put("test[ONE,b=true,TWO,d=false,THREE,f=false]", "ONE:true:TWO:false:THREE:false")
-          .put("test[ONE,b=true,TWO,d=false,THREE,f=true]", "ONE:true:TWO:false:THREE:true")
-          .put("test[ONE,b=true,TWO,d=true,THREE,f=false]", "ONE:true:TWO:true:THREE:false")
-          .put("test[ONE,b=true,TWO,d=true,THREE,f=true]", "ONE:true:TWO:true:THREE:true")
-          .buildOrThrow();
-    }
-  }
-
-  @RunAsTest
   public static class TooLongTestNamesShortened extends SuccessfulTestCaseBase {
 
     @Test

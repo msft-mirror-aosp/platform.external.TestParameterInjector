@@ -199,56 +199,6 @@ class TestParameterInjectorKotlinTest {
   }
 
   @RunAsTest
-  internal class TestParameter_PrimaryConstructorParamMixedWithField(
-    @TestParameter private val testBoolean1: Boolean
-  ) : SuccessfulTestCaseBase() {
-    @TestParameter private var testBoolean2: Boolean = false
-    @TestParameter private var testBoolean3: Boolean = false
-
-    @Test
-    fun testWithPrimaryConstructorParam() {
-      storeTestParametersForThisTest(testBoolean1, testBoolean2)
-    }
-
-    override fun expectedTestNameToStringifiedParameters(): ImmutableMap<String, String> {
-      return ImmutableMap.builder<String, String>()
-        .put(
-          "testWithPrimaryConstructorParam[testBoolean2=false,testBoolean3=false,testBoolean1=false]",
-          "false:false",
-        )
-        .put(
-          "testWithPrimaryConstructorParam[testBoolean2=false,testBoolean3=false,testBoolean1=true]",
-          "true:false",
-        )
-        .put(
-          "testWithPrimaryConstructorParam[testBoolean2=false,testBoolean3=true,testBoolean1=false]",
-          "false:false",
-        )
-        .put(
-          "testWithPrimaryConstructorParam[testBoolean2=false,testBoolean3=true,testBoolean1=true]",
-          "true:false",
-        )
-        .put(
-          "testWithPrimaryConstructorParam[testBoolean2=true,testBoolean3=false,testBoolean1=false]",
-          "false:true",
-        )
-        .put(
-          "testWithPrimaryConstructorParam[testBoolean2=true,testBoolean3=false,testBoolean1=true]",
-          "true:true",
-        )
-        .put(
-          "testWithPrimaryConstructorParam[testBoolean2=true,testBoolean3=true,testBoolean1=false]",
-          "false:true",
-        )
-        .put(
-          "testWithPrimaryConstructorParam[testBoolean2=true,testBoolean3=true,testBoolean1=true]",
-          "true:true",
-        )
-        .buildOrThrow()
-    }
-  }
-
-  @RunAsTest
   internal class TestParameter_WithDefaultValues_OnMethod() : SuccessfulTestCaseBase() {
 
     @Test

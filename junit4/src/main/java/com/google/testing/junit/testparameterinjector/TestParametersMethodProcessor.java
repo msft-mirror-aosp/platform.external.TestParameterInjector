@@ -434,6 +434,16 @@ final class TestParametersMethodProcessor implements TestMethodProcessor {
         yamlString);
     Map<?, ?> yamlMap = (Map<?, ?>) yamlMapObject;
 
+    for (Object key : yamlMap.keySet()) {
+      checkState(
+          !String.valueOf(key).contains(":"),
+          "Cannot map YAML string '%s' to parameters:\n\n"
+              + "Key '%s' contains a colon (:). It is a common mistake in YAML to forget to add a"
+              + " whitespace after a field (e.g. 'key: value' instead of 'key:value').",
+          yamlString,
+          key);
+    }
+
     ImmutableMap<String, JavaCompatibilityParameter> parametersByName =
         Maps.uniqueIndex(parameters, p -> p.maybeGetName().get());
     checkState(

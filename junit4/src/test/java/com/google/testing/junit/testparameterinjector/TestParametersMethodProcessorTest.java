@@ -616,6 +616,17 @@ public class TestParametersMethodProcessorTest {
     public void test1(TestEnum testEnum) {}
   }
 
+  @RunAsTest(
+      failsWithMessage =
+          "Cannot map YAML string '{desktop:true, demoted: false}' to parameters:\n\n"
+              + "Key 'desktop:true' contains a colon (:). It is a common mistake in YAML to forget"
+              + " to add a whitespace after a field (e.g. 'key: value' instead of 'key:value').")
+  public static class InvalidTestBecauseKeyContainsColon {
+    @Test
+    @TestParameters("{desktop:true, demoted: false}")
+    public void test1(boolean desktop, boolean demoted) {}
+  }
+
   @RunAsTest(failsWithMessage = "Expected exactly one constructor, but got []")
   public static class InvalidTestBecausePackagePrivateConstructor {
     InvalidTestBecausePackagePrivateConstructor() {}

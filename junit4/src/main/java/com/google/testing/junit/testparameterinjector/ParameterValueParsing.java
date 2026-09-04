@@ -34,6 +34,7 @@ import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.math.BigInteger;
 import java.nio.charset.Charset;
 import java.time.Duration;
@@ -99,7 +100,7 @@ final class ParameterValueParsing {
     }
   }
 
-  static Object parseYamlStringToJavaType(String yamlString, Class<?> javaType) {
+  static Object parseYamlStringToJavaType(String yamlString, Type javaType) {
     return parseYamlObjectToJavaType(parseYamlStringToObject(yamlString), TypeToken.of(javaType));
   }
 

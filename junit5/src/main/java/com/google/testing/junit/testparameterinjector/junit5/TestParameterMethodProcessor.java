@@ -34,6 +34,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Range;
 import com.google.common.primitives.Primitives;
+import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.google.testing.junit.testparameterinjector.junit5.TestInfo.TestInfoParameter;
 import com.google.testing.junit.testparameterinjector.junit5.TestParameterInjectorUtils.JavaCompatibilityExecutable;
@@ -48,6 +49,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -243,7 +245,7 @@ class TestParameterMethodProcessor implements TestMethodProcessor {
               .transform(
                   v ->
                       TestParameterValue.maybeWrap(
-                          parseStringValue(v, annotationWithMetadata.paramClass())))
+                          parseStringValue(v, annotationWithMetadata.paramType())))
               .toList());
     } else if (valuesProviderIsSet) {
       return Optional.of(
@@ -342,13 +344,14 @@ class TestParameterMethodProcessor implements TestMethodProcessor {
     }
   }
 
-  private static Object parseStringValue(String value, Class<?> parameterClass) {
+  private static Object parseStringValue(String value, Type parameterType) {
+    Class<?> parameterClass = TypeToken.of(parameterType).getRawType();
     if (parameterClass.equals(String.class)) {
       return value.equals("null") ? null : value;
     } else if (Enum.class.isAssignableFrom(parameterClass)) {
       return value.equals("null") ? null : ParameterValueParsing.parseEnum(value, parameterClass);
     } else {
-      return ParameterValueParsing.parseYamlStringToJavaType(value, parameterClass);
+      return ParameterValueParsing.parseYamlStringToJavaType(value, parameterType);
     }
   }
 
@@ -483,7 +486,7 @@ class TestParameterMethodProcessor implements TestMethodProcessor {
                             annotation ->
                                 AnnotationWithMetadata.withMetadata(
                                     annotation,
-                                    field.getType(),
+                                    field.getGenericType(),
                                     Optional.of(field.getName()),
                                     GenericParameterContext.create(field, testClass)))
                         .asSet())
@@ -535,8 +538,8 @@ class TestParameterMethodProcessor implements TestMethodProcessor {
                   constructorAnnotation ->
                       fieldAnnotation.annotation().equals(constructorAnnotation.annotation())
                           && fieldAnnotation
-                              .paramClass()
-                              .equals(constructorAnnotation.paramClass()))
+                              .paramRawType()
+                              .equals(constructorAnnotation.paramRawType()))
               .toList();
 
       if (matchingConstructorAnnotations.isEmpty()) {
@@ -594,7 +597,7 @@ class TestParameterMethodProcessor implements TestMethodProcessor {
                         .or(
                             () ->
                                 getObviousValuesForParameterClass(
-                                    annotationWithMetadata.paramClass())),
+                                    annotationWithMetadata.paramRawType())),
                     origin,
                     executable))
         .toList();
@@ -632,7 +635,7 @@ class TestParameterMethodProcessor implements TestMethodProcessor {
                   getExplicitValuesFromAnnotation(annotationWithMetadatas.get(index)),
               /* getImplicitValuesByIndex= */ index ->
                   getObviousValuesForParameterClass(
-                      annotationWithMetadatas.get(index).paramClass()));
+                      annotationWithMetadatas.get(index).paramRawType()));
       return FluentIterable.from(
               ContiguousSet.create(
                   Range.closedOpen(0, annotationWithMetadatas.size()), DiscreteDomain.integers()))
@@ -695,7 +698,7 @@ class TestParameterMethodProcessor implements TestMethodProcessor {
               executable.transform(s -> s.getHumanReadableNameSummary() + ": ").or(""),
               annotationWithMetadata
                   .paramName()
-                  .or(annotationWithMetadata.paramClass().getSimpleName())));
+                  .or(annotationWithMetadata.paramRawType().getSimpleName())));
     }
     return FluentIterable.from(
             ContiguousSet.create(
@@ -825,8 +828,8 @@ class TestParameterMethodProcessor implements TestMethodProcessor {
     /** The @TestParameter annotation instance. */
     abstract TestParameter annotation();
 
-    /** The class of the parameter or field that is being annotated. */
-    abstract Class<?> paramClass();
+    /** The generic type of the parameter or field that is being annotated. */
+    abstract Type paramType();
 
     /**
      * The name of the parameter or field that is being annotated. Can be absent if the annotation
@@ -837,13 +840,18 @@ class TestParameterMethodProcessor implements TestMethodProcessor {
     /** A value class that contains extra information about the context of this parameter. */
     abstract GenericParameterContext context();
 
+    /** The class of the parameter or field that is being annotated. */
+    Class<?> paramRawType() {
+      return TypeToken.of(paramType()).getRawType();
+    }
+
     public static AnnotationWithMetadata withMetadata(
         TestParameter annotation,
-        Class<?> paramClass,
+        Type paramType,
         Optional<String> paramName,
         GenericParameterContext context) {
       return new AutoValue_TestParameterMethodProcessor_AnnotationWithMetadata(
-          annotation, paramClass, paramName, context);
+          annotation, paramType, paramName, context);
     }
 
     public static AnnotationWithMetadata fromAnnotatedParameter(
@@ -852,7 +860,7 @@ class TestParameterMethodProcessor implements TestMethodProcessor {
       checkNotNull(annotation, "Parameter %s is not annotated with @TestParameter", parameter);
       return AnnotationWithMetadata.withMetadata(
           annotation,
-          parameter.getType(),
+          parameter.getParameterizedType(),
           parameter.maybeGetName(),
           GenericParameterContext.create(parameter, testClass));
     }

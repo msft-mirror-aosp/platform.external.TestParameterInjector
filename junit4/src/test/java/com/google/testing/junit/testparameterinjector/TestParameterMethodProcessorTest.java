@@ -40,6 +40,7 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 /** Test class to test the @TestParameter's value provider. */
+@SuppressWarnings("UnusedVariable") // test data
 @RunWith(Parameterized.class)
 public class TestParameterMethodProcessorTest {
 
@@ -64,7 +65,7 @@ public class TestParameterMethodProcessorTest {
 
     @Override
     ImmutableMap<String, String> expectedTestNameToStringifiedParameters() {
-      return ImmutableMap.<String, String>builder().put("test", "nothing").build();
+      return ImmutableMap.<String, String>builder().put("test", "nothing").buildOrThrow();
     }
   }
 
@@ -84,7 +85,7 @@ public class TestParameterMethodProcessorTest {
           .put("test[ONE]", "ONE")
           .put("test[TWO]", "TWO")
           .put("test[THREE]", "THREE")
-          .build();
+          .buildOrThrow();
     }
   }
 
@@ -116,7 +117,7 @@ public class TestParameterMethodProcessorTest {
           .put("test[THREE,ONE]", "THREE:ONE")
           .put("test[THREE,TWO]", "THREE:TWO")
           .put("test[THREE,THREE]", "THREE:THREE")
-          .build();
+          .buildOrThrow();
     }
   }
 
@@ -146,7 +147,7 @@ public class TestParameterMethodProcessorTest {
           .put("test[THREE,TWO,[100, 97, 116, 97, 50]]", "THREE:TWO:data2")
           .put("test[THREE,THREE,[100, 97, 116, 97]]", "THREE:THREE:data")
           .put("test[THREE,THREE,[100, 97, 116, 97, 50]]", "THREE:THREE:data2")
-          .build();
+          .buildOrThrow();
     }
   }
 
@@ -182,7 +183,7 @@ public class TestParameterMethodProcessorTest {
           .put("test[ONE,b=true,TWO,d=false,THREE,f=true]", "ONE:true:TWO:false:THREE:true")
           .put("test[ONE,b=true,TWO,d=true,THREE,f=false]", "ONE:true:TWO:true:THREE:false")
           .put("test[ONE,b=true,TWO,d=true,THREE,f=true]", "ONE:true:TWO:true:THREE:true")
-          .build();
+          .buildOrThrow();
     }
   }
 
@@ -214,7 +215,7 @@ public class TestParameterMethodProcessorTest {
                   + " exceed the filename limit of 255 characters."
                   + " ============================================================================"
                   + "==================================")
-          .build();
+          .buildOrThrow();
     }
   }
 
@@ -247,7 +248,23 @@ public class TestParameterMethodProcessorTest {
           .put("test2[testObject=123 (String)]", "123")
           .put("test2[testObject=null (String)]", "null")
           .put("test2[testObject=null (null reference)]", "null")
-          .build();
+          .buildOrThrow();
+    }
+  }
+
+  @RunAsTest
+  public static class SingleListParameter extends SuccessfulTestCaseBase {
+    @Test
+    public void test(@TestParameter({"[ONE]", "[ONE, TWO]"}) List<TestEnum> list) {
+      storeTestParametersForThisTest(list);
+    }
+
+    @Override
+    ImmutableMap<String, String> expectedTestNameToStringifiedParameters() {
+      return ImmutableMap.<String, String>builder()
+          .put("test[[ONE]]", "[ONE]")
+          .put("test[[ONE, TWO]]", "[ONE, TWO]")
+          .buildOrThrow();
     }
   }
 
@@ -265,7 +282,7 @@ public class TestParameterMethodProcessorTest {
       return ImmutableMap.<String, String>builder()
           .put("testInBase[b=false]", "false")
           .put("testInBase[b=true]", "true")
-          .build();
+          .buildOrThrow();
     }
   }
 
@@ -334,7 +351,7 @@ public class TestParameterMethodProcessorTest {
           .put("testInBase[boolInChild=true,boolInBase=false,TWO]", "false:TWO")
           .put("testInBase[boolInChild=true,boolInBase=true,ONE]", "true:ONE")
           .put("testInBase[boolInChild=true,boolInBase=true,TWO]", "true:TWO")
-          .build();
+          .buildOrThrow();
     }
   }
 
@@ -405,7 +422,7 @@ public class TestParameterMethodProcessorTest {
           .put(
               "charMatcherTest[number2=2,number1=2,CharMatcher.whitespace()]",
               "2:2:CharMatcher.whitespace()")
-          .build();
+          .buildOrThrow();
     }
 
     private static final class TestNumberProvider extends TestParameterValuesProvider {
@@ -459,7 +476,7 @@ public class TestParameterMethodProcessorTest {
           .put("withString[fieldParam=8,AAA]", "8:AAA")
           .put("withEnum[fieldParam=8,TWO]", "8:TWO")
           .put("withPrimitives[fieldParam=8,param1=true,param2=2]", "8:true:2")
-          .build();
+          .buildOrThrow();
     }
   }
 
